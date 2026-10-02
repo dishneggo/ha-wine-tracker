@@ -408,6 +408,32 @@ html.light .filter-option:hover { background: rgba(0,0,0,.05); }
   color: var(--muted);
 }
 .qty-badge.has { color: var(--gold); }
+.qty-badge[onclick] { cursor: pointer; }
+.qty-badge[onclick]:hover { border-color: var(--accent2); }
+.view-list .qty-badge[onclick]:hover { color: var(--accent2); }
+.wine-table .col-qty[onclick] { cursor: pointer; }
+.wine-table .col-qty[onclick]:hover { color: var(--accent2); }
+
+/* ── Qty Popover (opened from the qty badge) ──────────────────────────────── */
+.qty-popover {
+  position: fixed;
+  display: flex; align-items: center; gap: .25rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: .3rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  z-index: 150;
+}
+.qty-popover button {
+  width: 34px; height: 34px; border: none; background: none;
+  color: var(--text); font-size: 1.1rem; cursor: pointer;
+  border-radius: 6px; transition: background .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.qty-popover button:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.qty-popover-count {
+  min-width: 2rem; text-align: center;
+  font-size: .95rem; font-weight: 700; color: var(--gold);
+}
 
 .card-body { padding: .75rem 1rem; }
 .card-name { font-weight: 700; font-size: 1rem; margin-bottom: .2rem;

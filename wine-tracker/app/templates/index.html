@@ -125,7 +125,7 @@
     </div>
 
     <!-- Quantity badge -->
-    <div class="qty-badge {% if w['quantity'] > 0 %}has{% endif %}">
+    <div class="qty-badge {% if w['quantity'] > 0 %}has{% endif %}"{% if not auth_readonly %} onclick="openQtyPopover(this, event)"{% endif %}>
       {{ w['quantity'] }} {{ t.bottle_abbr if w['quantity'] == 1 else t.bottles_abbr }}
     </div>
 
@@ -225,6 +225,16 @@
     </div>
   </div>
 </div>
+
+
+{% if not auth_readonly %}
+<!-- ═══════════════ QTY POPOVER (opened from qty badge) ═══════════════ -->
+<div class="qty-popover" id="qtyPopover" style="display:none">
+  <button type="button" onclick="qtyPopoverChange(-1)" title="{{ t.btn_less }}">−</button>
+  <span class="qty-popover-count" id="qtyPopoverCount">0</span>
+  <button type="button" onclick="qtyPopoverChange(1)" title="{{ t.btn_more }}">+</button>
+</div>
+{% endif %}
 
 
 <!-- ═══════════════ WINE VIEW MODAL ═══════════════ -->
@@ -340,7 +350,7 @@ function renderTableView() {
       + '<td class="col-region">' + escapeHtml(d.region || '') + '</td>'
       + '<td class="col-grape">' + escapeHtml(d.grape || '') + '</td>'
       + '<td class="wine-table-right col-price">' + escapeHtml(priceStr) + '</td>'
-      + '<td class="wine-table-right col-qty">' + (d.quantity || '0') + '</td>'
+      + '<td class="wine-table-right col-qty"' + (AUTH_READONLY ? '' : ' onclick="openQtyPopover(this, event)"') + '>' + (d.quantity || '0') + '</td>'
       + '</tr>';
   });
   tbody += '</tbody>';
@@ -1182,7 +1192,7 @@ function renderCard(w) {
 
   return ribbonHtml +
     '<div class="card-img' + (w.image ? ' shimmer' : '') + '" onclick="cardImgClick(this)">' + imgHtml + '</div>' +
-    '<div class="qty-badge ' + (w.quantity > 0 ? 'has' : '') + '">' + w.quantity + ' ' + (w.quantity === 1 ? T.bottle_abbr : T.bottles_abbr) + '</div>' +
+    '<div class="qty-badge ' + (w.quantity > 0 ? 'has' : '') + '"' + (AUTH_READONLY ? '' : ' onclick="openQtyPopover(this, event)"') + '>' + w.quantity + ' ' + (w.quantity === 1 ? T.bottle_abbr : T.bottles_abbr) + '</div>' +
     '<div class="card-body" onclick="viewFromCard(this)">' +
       '<div class="card-name" title="' + escapeHtml(w.name) + '">' + escapeHtml(w.name) + '</div>' +
       '<div class="card-meta">' + metaParts + '</div>' +
@@ -1267,7 +1277,10 @@ window._onWineSaved = function(data) {
 // ── AJAX qty change ───────────────────────────────────────────────────────────
 
 function changeQty(el, delta) {
-  var card = el.closest('.card');
+  changeQtyCard(el.closest('.card'), delta);
+}
+
+function changeQtyCard(card, delta) {
   var id = card.dataset.id;
   var d = card.dataset;
   var newQty = Math.max(0, (parseInt(d.quantity) || 0) + delta);
@@ -1295,6 +1308,11 @@ function changeQty(el, delta) {
   card.querySelector('.qty-badge').textContent = newQty + ' ' + (newQty === 1 ? T.bottle_abbr : T.bottles_abbr);
   card.querySelector('.qty-badge').classList.toggle('has', newQty > 0);
   card.classList.toggle('empty', newQty == 0);
+  var tableRow = document.querySelector('#wineTable tr[data-card-id="' + id + '"]');
+  if (tableRow) {
+    tableRow.querySelector('.col-qty').textContent = newQty;
+    tableRow.classList.toggle('empty', newQty == 0);
+  }
   applyFilters();
 
   fetch(INGRESS + '/edit/' + id, {
@@ -1302,6 +1320,51 @@ function changeQty(el, delta) {
     headers: { 'X-Requested-With': 'XMLHttpRequest' }
   });
 }
+
+// ── Qty popover (opened from the qty badge) ──────────────────────────────────
+
+var qtyPopoverCard = null;
+
+function openQtyPopover(el, ev) {
+  ev.stopPropagation();
+  var pop = document.getElementById('qtyPopover');
+  // Anchor can live in a card or in a table row referencing the card
+  var card = el.closest('.card');
+  if (!card) {
+    var row = el.closest('[data-card-id]');
+    card = row && document.querySelector('.card[data-id="' + row.dataset.cardId + '"]');
+  }
+  if (!card) return;
+  if (qtyPopoverCard === card && pop.style.display !== 'none') { closeQtyPopover(); return; }
+  qtyPopoverCard = card;
+  document.getElementById('qtyPopoverCount').textContent = card.dataset.quantity || '0';
+  pop.style.display = 'flex';
+  var r = el.getBoundingClientRect();
+  var pr = pop.getBoundingClientRect();
+  var left = Math.max(8, Math.min(r.left, window.innerWidth - pr.width - 8));
+  var top = r.bottom + 6;
+  if (top + pr.height > window.innerHeight - 8) top = r.top - pr.height - 6;
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
+function closeQtyPopover() {
+  var pop = document.getElementById('qtyPopover');
+  if (pop) pop.style.display = 'none';
+  qtyPopoverCard = null;
+}
+
+function qtyPopoverChange(delta) {
+  if (!qtyPopoverCard) return;
+  changeQtyCard(qtyPopoverCard, delta);
+  document.getElementById('qtyPopoverCount').textContent = qtyPopoverCard.dataset.quantity;
+}
+
+document.addEventListener('click', function(e) {
+  var pop = document.getElementById('qtyPopover');
+  if (pop && pop.style.display !== 'none' && !pop.contains(e.target)) closeQtyPopover();
+});
+window.addEventListener('scroll', closeQtyPopover, true);
 
 // ── AJAX duplicate ────────────────────────────────────────────────────────────
 
