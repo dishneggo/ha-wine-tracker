@@ -2417,7 +2417,9 @@ def load_user_prefs():
 
 @app.route("/api/prefs", methods=["POST"])
 def api_prefs_save():
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if payload is None or not isinstance(payload, dict):
+        return jsonify(ok=False, error="json_body_required"), 400
     prefs = {
         k: str(v)[:200] for k, v in payload.items()
         if k in PREF_KEYS and isinstance(v, str)

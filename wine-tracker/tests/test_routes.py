@@ -1427,3 +1427,12 @@ class TestProducerAlcoholFields:
         dup = resp.get_json()["wine"]
         assert dup["producer"] == "Weingut Y"
         assert dup["alcohol_pct"] == 13.0
+
+    def test_prefs_without_json_body_rejected(self, client, db):
+        """A POST without JSON body must return 400 and keep existing prefs."""
+        client.post("/api/prefs", json={"wine-theme": "dark"})
+        resp = client.post("/api/prefs", data="not json",
+                           content_type="text/plain")
+        assert resp.status_code == 400
+        rows = {r["key"]: r["value"] for r in db.execute("SELECT key, value FROM user_prefs")}
+        assert rows == {"wine-theme": "dark"}
