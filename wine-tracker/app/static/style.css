@@ -1096,12 +1096,14 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
   background: var(--surface); flex-shrink: 0;
 }
 .settings-tab {
+  display: flex; align-items: center; gap: .4rem;
   background: none; border: none; cursor: pointer;
   padding: .65rem .9rem; font-size: .85rem; font-weight: 600;
   color: var(--muted); border-bottom: 2px solid transparent;
   margin-bottom: -1px; white-space: nowrap;
   transition: color .2s, border-color .2s;
 }
+.settings-tab .mdi { font-size: 1rem; }
 .settings-tab:hover { color: var(--text); }
 .settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .settings-section[data-settings-tab] > .settings-section-title { display: none; }

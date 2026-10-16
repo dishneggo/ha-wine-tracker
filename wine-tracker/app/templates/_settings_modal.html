@@ -6,11 +6,11 @@
       <button class="modal-close" onclick="closeModal('settingsModal')">&times;</button>
     </div>
     <div class="settings-tabs">
-      <button type="button" class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')">{{ t.settings_theme }}</button>
-      {% if ai_enabled %}<button type="button" class="settings-tab" data-tab="sommelier" onclick="switchSettingsTab('sommelier')">{{ t.settings_chat }}</button>{% endif %}
-      {% if not auth_readonly %}<button type="button" class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')">{{ t.settings_ai }}</button>{% endif %}
-      <button type="button" class="settings-tab" data-tab="data" onclick="switchSettingsTab('data')">{{ t.settings_data }}</button>
-      <button type="button" class="settings-tab" data-tab="about" onclick="switchSettingsTab('about')">{{ t.settings_about }}</button>
+      <button type="button" class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')"><i class="mdi mdi-palette-outline"></i> {{ t.settings_theme }}</button>
+      {% if ai_enabled %}<button type="button" class="settings-tab" data-tab="sommelier" onclick="switchSettingsTab('sommelier')"><i class="mdi mdi-chat-outline"></i> {{ t.settings_chat }}</button>{% endif %}
+      {% if not auth_readonly %}<button type="button" class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')"><i class="mdi mdi-robot-outline"></i> {{ t.settings_ai }}</button>{% endif %}
+      <button type="button" class="settings-tab" data-tab="data" onclick="switchSettingsTab('data')"><i class="mdi mdi-database-outline"></i> {{ t.settings_data }}</button>
+      <button type="button" class="settings-tab" data-tab="about" onclick="switchSettingsTab('about')"><i class="mdi mdi-information-outline"></i> {{ t.settings_about }}</button>
     </div>
     <div class="modal-body">
       <!-- Hidden element for translated theme labels -->
