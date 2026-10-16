@@ -1146,10 +1146,18 @@ html.light .ai-status.ok { color: var(--text); }
   .settings-row-label:empty { display: none; }
   .ai-actions .ai-action-btn { flex: 1 1 0; }
 }
-/* Push logout section to bottom of modal */
-#settingsModal .settings-section:last-child:not([data-settings-tab]) {
-  margin-top: auto;
+.settings-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .6rem 1.25rem; border-top: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0; font-size: .8rem;
 }
+.settings-footer-user { display: flex; align-items: center; gap: .35rem; color: var(--muted); }
+.settings-footer-logout {
+  display: flex; align-items: center; gap: .35rem;
+  color: var(--muted); text-decoration: none; font-weight: 600;
+  transition: color .2s;
+}
+.settings-footer-logout:hover { color: var(--accent2); }
 
 /* Data section (Export / Import) - inherits settings-row layout, adds hint
    below the label and aligns label to the top so long text wraps naturally. */
