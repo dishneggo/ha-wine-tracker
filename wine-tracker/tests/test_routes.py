@@ -1436,3 +1436,60 @@ class TestProducerAlcoholFields:
         assert resp.status_code == 400
         rows = {r["key"]: r["value"] for r in db.execute("SELECT key, value FROM user_prefs")}
         assert rows == {"wine-theme": "dark"}
+
+
+# ── Quantity undo ─────────────────────────────────────────────────────────────
+
+class TestQtyUndo:
+    """Undo of a quantity change removes the reverted timeline entry."""
+
+    XHR = {"X-Requested-With": "XMLHttpRequest"}
+
+    def _timeline_actions(self, db, wine_id):
+        rows = db.execute(
+            "SELECT action, quantity FROM timeline WHERE wine_id=? ORDER BY id",
+            (wine_id,),
+        ).fetchall()
+        return [(r["action"], r["quantity"]) for r in rows]
+
+    def test_undo_consumed_removes_timeline_entry(self, client, db, sample_wine):
+        """Undoing a minus click deletes the consumed entry instead of logging restocked."""
+        wine_id = sample_wine["wine"]["id"]
+        name = sample_wine["wine"]["name"]
+        client.post(f"/edit/{wine_id}", data={"name": name, "quantity": "2"}, headers=self.XHR)
+        assert ("consumed", 1) in self._timeline_actions(db, wine_id)
+        resp = client.post(
+            f"/edit/{wine_id}",
+            data={"name": name, "quantity": "3", "qty_undo": "1"},
+            headers=self.XHR,
+        )
+        assert resp.get_json()["wine"]["quantity"] == 3
+        actions = self._timeline_actions(db, wine_id)
+        assert ("consumed", 1) not in actions
+        assert ("restocked", 1) not in actions
+
+    def test_undo_restocked_removes_timeline_entry(self, client, db, sample_wine):
+        """Undoing a plus click deletes the restocked entry instead of logging consumed."""
+        wine_id = sample_wine["wine"]["id"]
+        name = sample_wine["wine"]["name"]
+        client.post(f"/edit/{wine_id}", data={"name": name, "quantity": "4"}, headers=self.XHR)
+        assert ("restocked", 1) in self._timeline_actions(db, wine_id)
+        client.post(
+            f"/edit/{wine_id}",
+            data={"name": name, "quantity": "3", "qty_undo": "1"},
+            headers=self.XHR,
+        )
+        actions = self._timeline_actions(db, wine_id)
+        assert ("restocked", 1) not in actions
+        assert ("consumed", 1) not in actions
+
+    def test_undo_without_matching_entry_logs_normally(self, client, db, sample_wine):
+        """qty_undo without a matching entry falls back to normal logging."""
+        wine_id = sample_wine["wine"]["id"]
+        name = sample_wine["wine"]["name"]
+        client.post(
+            f"/edit/{wine_id}",
+            data={"name": name, "quantity": "5", "qty_undo": "1"},
+            headers=self.XHR,
+        )
+        assert ("restocked", 2) in self._timeline_actions(db, wine_id)

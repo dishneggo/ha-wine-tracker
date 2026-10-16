@@ -1067,6 +1067,22 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 .reload-toast.success { background: var(--gold, #c8a951); color: var(--bg); }
 .reload-toast.neutral { background: var(--surface, #2a2a2a); color: var(--muted, #999); border: 1px solid var(--border, #444); }
 
+.qty-undo-toast {
+  position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: .75rem;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: .55rem .75rem .55rem 1.1rem; font-size: .9rem;
+  z-index: 9999; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  transition: opacity .4s ease;
+}
+.qty-undo-toast button {
+  background: none; border: none; cursor: pointer;
+  color: var(--gold); font-weight: 700; font-size: .9rem;
+  padding: .3rem .6rem; border-radius: 6px; transition: background .15s;
+}
+.qty-undo-toast button:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
 /* ── Settings Modal ───────────────────────────────────────────────────────── */
 #settingsModal .modal { max-width: 480px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
 #settingsModal .modal-body { overflow-y: auto; gap: 1.8rem; flex: 1; padding-bottom: 2.5rem; }

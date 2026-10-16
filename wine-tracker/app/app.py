@@ -962,16 +962,23 @@ def edit(wine_id):
         ),
     )
     # Log quantity changes
-    if new_quantity < old_quantity:
-        db.execute(
-            "INSERT INTO timeline (wine_id, action, quantity, timestamp) VALUES (?,?,?,?)",
-            (wine_id, "consumed", old_quantity - new_quantity, datetime.now().isoformat()),
-        )
-    elif new_quantity > old_quantity:
-        db.execute(
-            "INSERT INTO timeline (wine_id, action, quantity, timestamp) VALUES (?,?,?,?)",
-            (wine_id, "restocked", new_quantity - old_quantity, datetime.now().isoformat()),
-        )
+    if new_quantity != old_quantity:
+        undone = False
+        if request.form.get("qty_undo") == "1":
+            reverted_action = "restocked" if new_quantity < old_quantity else "consumed"
+            entry = db.execute(
+                "SELECT id FROM timeline WHERE wine_id=? AND action=? AND quantity=? ORDER BY id DESC LIMIT 1",
+                (wine_id, reverted_action, abs(new_quantity - old_quantity)),
+            ).fetchone()
+            if entry:
+                db.execute("DELETE FROM timeline WHERE id=?", (entry["id"],))
+                undone = True
+        if not undone:
+            action = "consumed" if new_quantity < old_quantity else "restocked"
+            db.execute(
+                "INSERT INTO timeline (wine_id, action, quantity, timestamp) VALUES (?,?,?,?)",
+                (wine_id, action, abs(new_quantity - old_quantity), datetime.now().isoformat()),
+            )
     db.commit()
     if is_ajax():
         return jsonify({"ok": True, "wine": wine_json(wine_id), "stats": stats_json()})

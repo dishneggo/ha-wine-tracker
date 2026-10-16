@@ -237,6 +237,12 @@
   <span class="qty-popover-count" id="qtyPopoverCount">0</span>
   <button type="button" onclick="qtyPopoverChange(1)" title="{{ t.btn_more }}">+</button>
 </div>
+
+<!-- ═══════════════ QTY UNDO TOAST ═══════════════ -->
+<div class="qty-undo-toast" id="qtyUndoToast" style="display:none">
+  <span id="qtyUndoMsg"></span>
+  <button type="button" onclick="undoQtyChange()">{{ t.btn_undo }}</button>
+</div>
 {% endif %}
 
 
@@ -1292,10 +1298,11 @@ function changeQty(el, delta) {
   changeQtyCard(el.closest('.card'), delta);
 }
 
-function changeQtyCard(card, delta) {
+function changeQtyCard(card, delta, isUndo) {
   var id = card.dataset.id;
   var d = card.dataset;
-  var newQty = Math.max(0, (parseInt(d.quantity) || 0) + delta);
+  var oldQty = parseInt(d.quantity) || 0;
+  var newQty = Math.max(0, oldQty + delta);
 
   var fd = new FormData();
   fd.append('name', d.name);
@@ -1313,6 +1320,7 @@ function changeQtyCard(card, delta) {
   fd.append('grape', d.grape);
   fd.append('bottle_format', d.bottle_format || '0.75');
   fd.append('vivino_id', d.vivino_id || '');
+  if (isUndo) fd.append('qty_undo', '1');
 
   // Optimistic UI update
   card.dataset.quantity = newQty;
@@ -1331,6 +1339,42 @@ function changeQtyCard(card, delta) {
     method: 'POST', body: fd,
     headers: { 'X-Requested-With': 'XMLHttpRequest' }
   });
+
+  if (isUndo) hideQtyUndoToast();
+  else if (newQty !== oldQty) showQtyUndoToast(id, newQty - oldQty);
+}
+
+// ── Qty undo toast ───────────────────────────────────────────────────────────
+
+var qtyUndoState = null;
+var qtyUndoTimer = null;
+
+function showQtyUndoToast(cardId, delta) {
+  var toast = document.getElementById('qtyUndoToast');
+  if (!toast) return;
+  qtyUndoState = { cardId: cardId, delta: delta };
+  document.getElementById('qtyUndoMsg').textContent =
+    delta < 0 ? T.toast_bottle_removed : T.toast_bottle_added;
+  toast.style.display = 'flex';
+  toast.style.opacity = '1';
+  clearTimeout(qtyUndoTimer);
+  qtyUndoTimer = setTimeout(hideQtyUndoToast, 5000);
+}
+
+function hideQtyUndoToast() {
+  var toast = document.getElementById('qtyUndoToast');
+  if (!toast) return;
+  clearTimeout(qtyUndoTimer);
+  toast.style.opacity = '0';
+  setTimeout(function() { toast.style.display = 'none'; }, 400);
+  qtyUndoState = null;
+}
+
+function undoQtyChange() {
+  if (!qtyUndoState) return;
+  var card = document.querySelector('.card[data-id="' + qtyUndoState.cardId + '"]');
+  if (card) changeQtyCard(card, -qtyUndoState.delta, true);
+  else hideQtyUndoToast();
 }
 
 // ── Qty popover (opened from the qty badge) ──────────────────────────────────
