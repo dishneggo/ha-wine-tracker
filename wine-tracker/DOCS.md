@@ -81,6 +81,14 @@ Pick one AI provider and configure its API key and model. The AI is used for lab
 
 > **Tip:** Ollama runs fully local and requires no API key. Pull a vision model (`ollama pull llama3.2-vision`) and point `ollama_host` at your Ollama server.
 
+### Sidebar visibility for non-admin users
+
+Home Assistant only shows add-on ingress panels to users with admin rights.
+This is enforced by Home Assistant itself and cannot be changed by the add-on.
+If other household members should use Wine Tracker, run it in
+[standalone Docker mode](https://github.com/xenofex7/ha-wine-tracker#installation---docker-standalone)
+with per-user logins - including view-only (readonly) accounts.
+
 ## Data Persistence
 
 All data (SQLite database + photos) is stored under `/share/wine-tracker/` - preserved across add-on updates, restarts, and Home Assistant updates.
