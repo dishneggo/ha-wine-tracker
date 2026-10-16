@@ -39,3 +39,15 @@ configuration:
   ollama_model:
     name: Ollama Modell
     description: Vision-Modellname für Ollama (z.B. llama3.2-vision, llama3.2-vision-llama3).
+  minimax_api_key:
+    name: MiniMax API-Schlüssel
+    description: API-Schlüssel von minimaxi.com. Erforderlich bei KI-Anbieter "minimax".
+  minimax_model:
+    name: MiniMax Modell
+    description: Modellname für MiniMax (z.B. MiniMax-M3).
+  mistral_api_key:
+    name: Mistral API-Schlüssel
+    description: API-Schlüssel von console.mistral.ai. Erforderlich bei KI-Anbieter "mistral".
+  mistral_model:
+    name: Mistral Modell
+    description: Modellname für Mistral (z.B. mistral-medium-latest).

@@ -38,3 +38,15 @@ configuration:
   ollama_model:
     name: Modelo Ollama
     description: Nombre del modelo de visión para Ollama (ej. llama3.2-vision, llama3.2-vision-llama3).
+  minimax_api_key:
+    name: Clave API MiniMax
+    description: Clave API de minimaxi.com. Requerida para el proveedor "minimax".
+  minimax_model:
+    name: Modelo MiniMax
+    description: Nombre del modelo para MiniMax (ej. MiniMax-M3).
+  mistral_api_key:
+    name: Clave API Mistral
+    description: Clave API de console.mistral.ai. Requerida para el proveedor "mistral".
+  mistral_model:
+    name: Modelo Mistral
+    description: Nombre del modelo para Mistral (ej. mistral-medium-latest).

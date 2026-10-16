@@ -39,3 +39,15 @@ configuration:
   ollama_model:
     name: Ollama Model
     description: Vision model name for Ollama (e.g. llama3.2-vision, llama3.2-vision-llama3).
+  minimax_api_key:
+    name: MiniMax API Key
+    description: API key from minimaxi.com. Required when AI provider is "minimax".
+  minimax_model:
+    name: MiniMax Model
+    description: Model name for MiniMax (e.g. MiniMax-M3).
+  mistral_api_key:
+    name: Mistral API Key
+    description: API key from console.mistral.ai. Required when AI provider is "mistral".
+  mistral_model:
+    name: Mistral Model
+    description: Model name for Mistral (e.g. mistral-medium-latest).
