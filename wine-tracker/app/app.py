@@ -96,10 +96,12 @@ def load_options():
         "mistral_api_key": "",
         "mistral_model": "mistral-medium-latest",
     }
+    provider_explicit = False
     try:
         with open(OPTIONS_PATH, "r") as f:
             opts = json.load(f)
         defaults.update(opts)
+        provider_explicit = "ai_provider" in opts
     except (FileNotFoundError, json.JSONDecodeError):
         pass
 
@@ -126,6 +128,8 @@ def load_options():
         val = os.environ.get(env_key)
         if val:
             defaults[opt_key] = val
+            if opt_key == "ai_provider":
+                provider_explicit = True
 
     # In-app AI settings (app_settings table) override HA options and env
     db_path = globals().get("DB_PATH")
@@ -136,11 +140,14 @@ def load_options():
             for key, value in rows:
                 if key in AI_SETTING_KEYS and value:
                     defaults[key] = value
+                    if key == "ai_provider":
+                        provider_explicit = True
         except sqlite3.Error:
             pass
 
     # Backward compat: auto-detect Anthropic from old config (pre-multi-provider)
-    if defaults.get("ai_provider", "none") == "none" and defaults.get("anthropic_api_key", "").strip():
+    if (not provider_explicit and defaults.get("ai_provider", "none") == "none"
+            and defaults.get("anthropic_api_key", "").strip()):
         defaults["ai_provider"] = "anthropic"
     return defaults
 

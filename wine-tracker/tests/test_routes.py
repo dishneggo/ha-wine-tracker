@@ -1572,6 +1572,15 @@ class TestAiSettings:
         resp = client.post("/api/ai-settings/test", headers=self.XHR)
         assert resp.status_code == 400
 
+    def test_saved_none_disables_ai_despite_stored_key(self, client):
+        """Choosing "Deaktiviert" in the UI must stick even when a key exists."""
+        client.post("/api/ai-settings", json={"anthropic_api_key": "sk-test"})
+        client.post("/api/ai-settings", json={"ai_provider": "none"})
+        import app as wine_app
+        opts = wine_app.load_options()
+        assert opts["ai_provider"] == "none"
+        assert wine_app._is_ai_configured(opts) is False
+
 
 class TestAiSettingsAuth:
     """Readonly users must not read or change AI settings."""

@@ -474,3 +474,12 @@ class TestChatOpts:
     def test_unknown_provider_unchanged(self):
         opts = {"ai_provider": "none", "chat_model": "gpt-big"}
         assert wine_app.chat_opts(opts) == opts
+
+
+class TestExplicitProviderNone:
+    def test_explicit_none_in_options_not_overridden(self, tmp_path, monkeypatch):
+        """An explicit ai_provider "none" wins over the Anthropic auto-detect."""
+        opts_file = tmp_path / "options.json"
+        opts_file.write_text('{"ai_provider": "none", "anthropic_api_key": "sk-test-123"}')
+        monkeypatch.setattr(wine_app, "OPTIONS_PATH", str(opts_file))
+        assert wine_app.load_options()["ai_provider"] == "none"
