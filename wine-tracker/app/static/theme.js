@@ -137,9 +137,18 @@ function _apiBase() {
   return window.INGRESS !== undefined ? window.INGRESS : _ingressPrefix();
 }
 
-function _aiStatus(msg) {
+function _aiStatus(msg, kind) {
   var el = document.getElementById('aiSettingsStatus');
-  if (el) el.textContent = msg || '';
+  if (!el) return;
+  el.textContent = msg || '';
+  el.className = 'ai-status' + (kind ? ' ' + kind : '');
+}
+
+function _aiBusy(busy) {
+  ['aiTestBtn', 'aiSaveBtn'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.disabled = busy;
+  });
 }
 
 function aiSettingsLoad() {
@@ -159,6 +168,7 @@ function aiSettingsLoad() {
 function aiSettingsProviderChanged() {
   var p = document.getElementById('aiProviderSelect').value;
   document.getElementById('aiProviderFields').style.display = p === 'none' ? 'none' : '';
+  document.getElementById('aiTestBtn').style.display = p === 'none' ? 'none' : '';
   if (p === 'none' || !_aiSettings) return;
   document.getElementById('aiKeyRow').style.display = p === 'ollama' ? 'none' : '';
   document.getElementById('aiHostRow').style.display = p === 'ollama' ? '' : 'none';
@@ -181,6 +191,7 @@ function aiSettingsSave(cb) {
     if (key) payload[p + '_api_key'] = key;
   }
   _aiStatus('…');
+  _aiBusy(true);
   fetch(_apiBase() + '/api/ai-settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -188,13 +199,13 @@ function aiSettingsSave(cb) {
   })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (!data.ok) { _aiStatus(T.ai_save_failed); return; }
+      if (!data.ok) { _aiStatus(T.ai_save_failed, 'error'); _aiBusy(false); return; }
       document.getElementById('aiApiKeyInput').value = '';
-      _aiStatus(T.ai_saved);
+      _aiStatus(T.ai_saved, 'ok');
       if (typeof cb === 'function') { cb(); return; }
       location.reload();
     })
-    .catch(function() { _aiStatus(T.ai_save_failed); });
+    .catch(function() { _aiStatus(T.ai_save_failed, 'error'); _aiBusy(false); });
 }
 
 function aiSettingsTest() {
@@ -206,9 +217,11 @@ function aiSettingsTest() {
     })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        _aiStatus(data.ok ? T.ai_test_ok : T.ai_test_failed + ': ' + (data.error || ''));
+        _aiStatus(data.ok ? T.ai_test_ok : T.ai_test_failed + ': ' + (data.error || ''),
+                  data.ok ? 'ok' : 'error');
+        _aiBusy(false);
       })
-      .catch(function() { _aiStatus(T.ai_test_failed); });
+      .catch(function() { _aiStatus(T.ai_test_failed, 'error'); _aiBusy(false); });
   });
 }
 

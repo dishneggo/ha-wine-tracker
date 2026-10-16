@@ -167,41 +167,42 @@
           </div>
         </div>
 
-        <div id="aiProviderFields" style="display:none">
+        <div id="aiProviderFields" class="settings-fields" style="display:none">
           <div class="settings-row" id="aiKeyRow">
             <div class="settings-row-label">{{ t.settings_ai_api_key }}</div>
             <div class="settings-row-control">
-              <input type="password" id="aiApiKeyInput" autocomplete="new-password">
+              <input type="password" id="aiApiKeyInput" class="ai-field" autocomplete="new-password">
             </div>
           </div>
           <div class="settings-row" id="aiHostRow" style="display:none">
             <div class="settings-row-label">Ollama Host</div>
             <div class="settings-row-control">
-              <input type="text" id="aiHostInput" placeholder="http://localhost:11434">
+              <input type="text" id="aiHostInput" class="ai-field" placeholder="http://localhost:11434">
             </div>
           </div>
           <div class="settings-row">
             <div class="settings-row-label">{{ t.settings_ai_model }}</div>
             <div class="settings-row-control">
-              <input type="text" id="aiModelInput" autocomplete="off">
+              <input type="text" id="aiModelInput" class="ai-field" autocomplete="off">
             </div>
           </div>
-          <div class="settings-row">
-            <div class="settings-row-label">
-              {{ t.settings_ai_chat_model }}
-              <div class="data-row-hint">{{ t.settings_ai_chat_model_hint }}</div>
-            </div>
+          <div class="settings-row settings-row--top">
+            <div class="settings-row-label">{{ t.settings_ai_chat_model }}</div>
             <div class="settings-row-control">
-              <input type="text" id="aiChatModelInput" autocomplete="off">
+              <input type="text" id="aiChatModelInput" class="ai-field" autocomplete="off">
+              <div class="data-row-hint">{{ t.settings_ai_chat_model_hint }}</div>
             </div>
           </div>
         </div>
 
         <div class="settings-row">
-          <div class="settings-row-label"><span id="aiSettingsStatus" class="data-row-hint"></span></div>
-          <div class="settings-row-control" style="display:flex; gap:.5rem;">
-            <button type="button" class="btn-cancel data-action-btn" id="aiTestBtn" onclick="aiSettingsTest()">{{ t.btn_test_connection }}</button>
-            <button type="button" class="btn-cancel data-action-btn" id="aiSaveBtn" onclick="aiSettingsSave()">{{ t.btn_save }}</button>
+          <div class="settings-row-label"></div>
+          <div class="settings-row-control">
+            <div class="ai-actions">
+              <button type="button" class="btn-submit ai-action-btn" id="aiSaveBtn" onclick="aiSettingsSave()">{{ t.btn_save_settings }}</button>
+              <button type="button" class="btn-cancel ai-action-btn" id="aiTestBtn" onclick="aiSettingsTest()">{{ t.btn_test_connection }}</button>
+            </div>
+            <div id="aiSettingsStatus" class="ai-status" role="status" aria-live="polite"></div>
           </div>
         </div>
       </div>
