@@ -1090,6 +1090,21 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 @media (min-width: 700px) {
   #settingsModal .modal { max-width: 900px; }
 }
+.settings-tabs {
+  display: flex; gap: .25rem; overflow-x: auto;
+  padding: 0 1.25rem; border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0;
+}
+.settings-tab {
+  background: none; border: none; cursor: pointer;
+  padding: .65rem .9rem; font-size: .85rem; font-weight: 600;
+  color: var(--muted); border-bottom: 2px solid transparent;
+  margin-bottom: -1px; white-space: nowrap;
+  transition: color .2s, border-color .2s;
+}
+.settings-tab:hover { color: var(--text); }
+.settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.settings-section[data-settings-tab] > .settings-section-title { display: none; }
 .settings-section { display: flex; flex-direction: column; gap: 1rem; }
 .settings-section-title {
   font-size: .7rem; color: var(--muted); text-transform: uppercase;
@@ -1130,7 +1145,7 @@ html.light .ai-status.ok { color: var(--text); }
   .ai-actions .ai-action-btn { flex: 1 1 0; }
 }
 /* Push logout section to bottom of modal */
-#settingsModal .settings-section:last-child {
+#settingsModal .settings-section:last-child:not([data-settings-tab]) {
   margin-top: auto;
 }
 

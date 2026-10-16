@@ -129,6 +129,27 @@ function toggleChatEditWines(enabled) {
   localStorage.setItem('chatEditWines', enabled ? '1' : '0');
 }
 
+// ── Settings modal tabs ──────────────────────────────────────────────────────
+
+function switchSettingsTab(name) {
+  document.querySelectorAll('#settingsModal .settings-tab').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.tab === name);
+  });
+  document.querySelectorAll('#settingsModal .settings-section[data-settings-tab]').forEach(function(sec) {
+    sec.style.display = sec.dataset.settingsTab === name ? '' : 'none';
+  });
+  try { localStorage.setItem('wineSettingsTab', name); } catch (e) {}
+}
+
+function initSettingsTabs() {
+  var tabs = document.querySelectorAll('#settingsModal .settings-tab');
+  if (!tabs.length) return;
+  var saved = null;
+  try { saved = localStorage.getItem('wineSettingsTab'); } catch (e) {}
+  var valid = Array.prototype.some.call(tabs, function(b) { return b.dataset.tab === saved; });
+  switchSettingsTab(valid ? saved : tabs[0].dataset.tab);
+}
+
 // ── AI settings (settings modal) ─────────────────────────────────────────────
 
 var _aiSettings = null;
@@ -403,5 +424,6 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', fu
 document.addEventListener('DOMContentLoaded', function() {
   updateThemeSegmented();
   updateThemeDropdown();
+  initSettingsTabs();
   if (document.getElementById('aiProviderSelect')) aiSettingsLoad();
 });

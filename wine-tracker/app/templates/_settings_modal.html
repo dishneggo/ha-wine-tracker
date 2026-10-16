@@ -5,11 +5,18 @@
       <span>{{ t.settings_title }}</span>
       <button class="modal-close" onclick="closeModal('settingsModal')">&times;</button>
     </div>
+    <div class="settings-tabs">
+      <button type="button" class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')">{{ t.settings_theme }}</button>
+      {% if ai_enabled %}<button type="button" class="settings-tab" data-tab="sommelier" onclick="switchSettingsTab('sommelier')">{{ t.settings_chat }}</button>{% endif %}
+      {% if not auth_readonly %}<button type="button" class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')">{{ t.settings_ai }}</button>{% endif %}
+      <button type="button" class="settings-tab" data-tab="data" onclick="switchSettingsTab('data')">{{ t.settings_data }}</button>
+      <button type="button" class="settings-tab" data-tab="about" onclick="switchSettingsTab('about')">{{ t.settings_about }}</button>
+    </div>
     <div class="modal-body">
       <!-- Hidden element for translated theme labels -->
       <span data-theme-labels='{"classic":"{{ t.theme_classic }}","vineyard":"{{ t.theme_vineyard }}","champagne":"{{ t.theme_champagne }}","slate":"{{ t.theme_slate }}","burgundy":"{{ t.theme_burgundy }}","homeassistant":"{{ t.theme_homeassistant }}"}'  style="display:none"></span>
 
-      <div class="settings-section">
+      <div class="settings-section" data-settings-tab="appearance">
         <div class="settings-section-title">{{ t.settings_theme }}</div>
 
         <div class="settings-row">
@@ -124,7 +131,7 @@
 
       <!-- Chat (only when AI is configured) -->
       {% if ai_enabled %}
-      <div class="settings-section">
+      <div class="settings-section" data-settings-tab="sommelier">
         <div class="settings-section-title">{{ t.settings_chat }}</div>
         <div class="settings-row">
           <div class="settings-row-label">{{ t.settings_chat_recording }}</div>
@@ -149,7 +156,7 @@
 
       <!-- AI provider settings (hidden for readonly users) -->
       {% if not auth_readonly %}
-      <div class="settings-section">
+      <div class="settings-section" data-settings-tab="ai">
         <div class="settings-section-title">{{ t.settings_ai }}</div>
 
         <div class="settings-row">
@@ -209,7 +216,7 @@
       {% endif %}
 
       <!-- Data: Export / Import -->
-      <div class="settings-section">
+      <div class="settings-section" data-settings-tab="data">
         <div class="settings-section-title">{{ t.settings_data }}</div>
 
         <div class="settings-row data-row">
@@ -241,7 +248,7 @@
       </div>
 
       <!-- About -->
-      <div class="settings-section">
+      <div class="settings-section" data-settings-tab="about">
         <div class="settings-section-title">{{ t.settings_about }}</div>
         <div class="settings-row">
           <div class="settings-row-label">{{ t.about_version }}</div>
