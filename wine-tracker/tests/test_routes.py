@@ -1493,3 +1493,119 @@ class TestQtyUndo:
             headers=self.XHR,
         )
         assert ("restocked", 2) in self._timeline_actions(db, wine_id)
+
+
+# ── AI settings ───────────────────────────────────────────────────────────────
+
+class TestAiSettings:
+    """Tests for in-app AI settings (/api/ai-settings)."""
+
+    XHR = {"X-Requested-With": "XMLHttpRequest"}
+
+    def test_save_and_overlay(self, client):
+        """Saved settings override HA options via load_options()."""
+        resp = client.post("/api/ai-settings", json={
+            "ai_provider": "anthropic", "anthropic_api_key": "sk-test-123",
+            "anthropic_model": "claude-x", "chat_model": "claude-chat",
+        })
+        assert resp.get_json()["ok"] is True
+        import app as wine_app
+        opts = wine_app.load_options()
+        assert opts["ai_provider"] == "anthropic"
+        assert opts["anthropic_api_key"] == "sk-test-123"
+        assert opts["anthropic_model"] == "claude-x"
+        assert opts["chat_model"] == "claude-chat"
+
+    def test_get_masks_key_values(self, client):
+        """GET reports stored keys as booleans and never returns key material."""
+        client.post("/api/ai-settings", json={"anthropic_api_key": "sk-secret-456"})
+        data = client.get("/api/ai-settings").get_json()
+        assert data["ok"] is True
+        assert data["keys"]["anthropic_api_key"] is True
+        assert "sk-secret-456" not in json.dumps(data)
+
+    def test_empty_key_keeps_stored_value(self, client):
+        """An empty api_key field leaves the stored key untouched."""
+        client.post("/api/ai-settings", json={"anthropic_api_key": "sk-keep"})
+        client.post("/api/ai-settings", json={"anthropic_api_key": "", "anthropic_model": "m2"})
+        import app as wine_app
+        opts = wine_app.load_options()
+        assert opts["anthropic_api_key"] == "sk-keep"
+        assert opts["anthropic_model"] == "m2"
+
+    def test_null_deletes_override(self, client):
+        """null removes the stored override."""
+        client.post("/api/ai-settings", json={"anthropic_api_key": "sk-x"})
+        client.post("/api/ai-settings", json={"anthropic_api_key": None})
+        import app as wine_app
+        assert wine_app.load_options()["anthropic_api_key"] == ""
+
+    def test_unknown_keys_ignored(self, client, db):
+        """Only AI setting keys are stored."""
+        client.post("/api/ai-settings", json={"currency": "EUR", "evil": "x"})
+        assert db.execute("SELECT COUNT(*) AS c FROM app_settings").fetchone()["c"] == 0
+
+    def test_test_endpoint_uses_chat_call(self, client):
+        """The test endpoint dispatches to the configured chat provider."""
+        client.post("/api/ai-settings", json={
+            "ai_provider": "anthropic", "anthropic_api_key": "sk-t", "chat_model": "chat-m",
+        })
+        with patch("app._call_chat_anthropic", return_value="OK") as mock_call:
+            resp = client.post("/api/ai-settings/test", headers=self.XHR)
+        assert resp.get_json()["ok"] is True
+        assert resp.get_json()["reply"] == "OK"
+        opts_used = mock_call.call_args[0][2]
+        assert opts_used["anthropic_model"] == "chat-m"
+
+    def test_test_endpoint_reports_error(self, client):
+        """Provider errors surface as 502 with a message."""
+        client.post("/api/ai-settings", json={
+            "ai_provider": "anthropic", "anthropic_api_key": "sk-t",
+        })
+        with patch("app._call_chat_anthropic", side_effect=RuntimeError("bad key")):
+            resp = client.post("/api/ai-settings/test", headers=self.XHR)
+        assert resp.status_code == 502
+        assert "bad key" in resp.get_json()["error"]
+
+    def test_test_endpoint_unconfigured(self, client):
+        """Without a configured provider the test endpoint returns 400."""
+        resp = client.post("/api/ai-settings/test", headers=self.XHR)
+        assert resp.status_code == 400
+
+
+class TestAiSettingsAuth:
+    """Readonly users must not read or change AI settings."""
+
+    def _make_auth_app(self):
+        import app as wine_app
+
+        wine_app.AUTH_ENABLED = True
+        wine_app._USERS = {
+            "admin": {"hash": generate_password_hash("secret", method="pbkdf2:sha256"), "role": "admin"},
+            "viewer": {"hash": generate_password_hash("pass", method="pbkdf2:sha256"), "role": "readonly"},
+        }
+        wine_app.app.config["TESTING"] = True
+        wine_app.app.secret_key = "test-secret"
+        wine_app.init_db()
+        return wine_app.app.test_client()
+
+    def teardown_method(self):
+        import app as wine_app
+
+        wine_app.AUTH_ENABLED = False
+        wine_app._USERS = {}
+
+    def test_readonly_cannot_read_or_write(self):
+        client = self._make_auth_app()
+        client.post("/login", data={"username": "viewer", "password": "pass"})
+        assert client.get("/api/ai-settings").status_code == 403
+        resp = client.post("/api/ai-settings", json={"ai_provider": "openai"},
+                           headers={"X-Requested-With": "XMLHttpRequest"})
+        assert resp.status_code == 403
+
+    def test_admin_can_save(self):
+        client = self._make_auth_app()
+        client.post("/login", data={"username": "admin", "password": "secret"})
+        resp = client.post("/api/ai-settings", json={"ai_provider": "openai"},
+                           headers={"X-Requested-With": "XMLHttpRequest"})
+        assert resp.get_json()["ok"] is True

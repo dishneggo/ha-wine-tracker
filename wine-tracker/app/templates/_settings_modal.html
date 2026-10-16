@@ -147,6 +147,66 @@
       </div>
       {% endif %}
 
+      <!-- AI provider settings (hidden for readonly users) -->
+      {% if not auth_readonly %}
+      <div class="settings-section">
+        <div class="settings-section-title">{{ t.settings_ai }}</div>
+
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.settings_ai_provider }}</div>
+          <div class="settings-row-control">
+            <select id="aiProviderSelect" onchange="aiSettingsProviderChanged()">
+              <option value="none">{{ t.ai_provider_none }}</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="ollama">Ollama</option>
+              <option value="minimax">MiniMax</option>
+              <option value="mistral">Mistral</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="aiProviderFields" style="display:none">
+          <div class="settings-row" id="aiKeyRow">
+            <div class="settings-row-label">{{ t.settings_ai_api_key }}</div>
+            <div class="settings-row-control">
+              <input type="password" id="aiApiKeyInput" autocomplete="new-password">
+            </div>
+          </div>
+          <div class="settings-row" id="aiHostRow" style="display:none">
+            <div class="settings-row-label">Ollama Host</div>
+            <div class="settings-row-control">
+              <input type="text" id="aiHostInput" placeholder="http://localhost:11434">
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-label">{{ t.settings_ai_model }}</div>
+            <div class="settings-row-control">
+              <input type="text" id="aiModelInput" autocomplete="off">
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-label">
+              {{ t.settings_ai_chat_model }}
+              <div class="data-row-hint">{{ t.settings_ai_chat_model_hint }}</div>
+            </div>
+            <div class="settings-row-control">
+              <input type="text" id="aiChatModelInput" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-row-label"><span id="aiSettingsStatus" class="data-row-hint"></span></div>
+          <div class="settings-row-control" style="display:flex; gap:.5rem;">
+            <button type="button" class="btn-cancel data-action-btn" id="aiTestBtn" onclick="aiSettingsTest()">{{ t.btn_test_connection }}</button>
+            <button type="button" class="btn-cancel data-action-btn" id="aiSaveBtn" onclick="aiSettingsSave()">{{ t.btn_save }}</button>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Data: Export / Import -->
       <div class="settings-section">
         <div class="settings-section-title">{{ t.settings_data }}</div>

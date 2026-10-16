@@ -456,3 +456,21 @@ class TestServerDependency:
     def test_waitress_is_available(self):
         """app.py serves via waitress in production - the import must work."""
         import waitress  # noqa: F401
+
+
+# ── chat_opts() ───────────────────────────────────────────────────────────────
+
+class TestChatOpts:
+    def test_chat_model_overrides_provider_model(self):
+        opts = {"ai_provider": "openai", "openai_model": "gpt-mini", "chat_model": "gpt-big"}
+        out = wine_app.chat_opts(opts)
+        assert out["openai_model"] == "gpt-big"
+        assert opts["openai_model"] == "gpt-mini"
+
+    def test_without_chat_model_opts_unchanged(self):
+        opts = {"ai_provider": "openai", "openai_model": "gpt-mini", "chat_model": ""}
+        assert wine_app.chat_opts(opts) is opts
+
+    def test_unknown_provider_unchanged(self):
+        opts = {"ai_provider": "none", "chat_model": "gpt-big"}
+        assert wine_app.chat_opts(opts) == opts

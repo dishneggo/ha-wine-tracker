@@ -390,3 +390,12 @@ class TestUserPrefsTable:
         except sql.IntegrityError:
             inserted_twice = False
         assert inserted_twice is False
+
+
+class TestAppSettingsTable:
+    def test_app_settings_table_created(self, app, db):
+        """init_db() should create the app_settings table."""
+        row = db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'"
+        ).fetchone()
+        assert row is not None

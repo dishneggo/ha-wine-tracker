@@ -129,6 +129,89 @@ function toggleChatEditWines(enabled) {
   localStorage.setItem('chatEditWines', enabled ? '1' : '0');
 }
 
+// ── AI settings (settings modal) ─────────────────────────────────────────────
+
+var _aiSettings = null;
+
+function _apiBase() {
+  return window.INGRESS !== undefined ? window.INGRESS : _ingressPrefix();
+}
+
+function _aiStatus(msg) {
+  var el = document.getElementById('aiSettingsStatus');
+  if (el) el.textContent = msg || '';
+}
+
+function aiSettingsLoad() {
+  fetch(_apiBase() + '/api/ai-settings')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) return;
+      _aiSettings = data;
+      document.getElementById('aiProviderSelect').value = data.settings.ai_provider || 'none';
+      document.getElementById('aiChatModelInput').value = data.settings.chat_model || '';
+      document.getElementById('aiHostInput').value = data.settings.ollama_host || '';
+      aiSettingsProviderChanged();
+    })
+    .catch(function() {});
+}
+
+function aiSettingsProviderChanged() {
+  var p = document.getElementById('aiProviderSelect').value;
+  document.getElementById('aiProviderFields').style.display = p === 'none' ? 'none' : '';
+  if (p === 'none' || !_aiSettings) return;
+  document.getElementById('aiKeyRow').style.display = p === 'ollama' ? 'none' : '';
+  document.getElementById('aiHostRow').style.display = p === 'ollama' ? '' : 'none';
+  document.getElementById('aiModelInput').value = _aiSettings.settings[p + '_model'] || '';
+  var keyInput = document.getElementById('aiApiKeyInput');
+  keyInput.value = '';
+  keyInput.placeholder = _aiSettings.keys[p + '_api_key'] ? T.ai_key_stored : T.ai_key_placeholder;
+}
+
+function aiSettingsSave(cb) {
+  var p = document.getElementById('aiProviderSelect').value;
+  var payload = {
+    ai_provider: p,
+    chat_model: document.getElementById('aiChatModelInput').value
+  };
+  if (p !== 'none') {
+    payload[p + '_model'] = document.getElementById('aiModelInput').value;
+    if (p === 'ollama') payload.ollama_host = document.getElementById('aiHostInput').value;
+    var key = document.getElementById('aiApiKeyInput').value.trim();
+    if (key) payload[p + '_api_key'] = key;
+  }
+  _aiStatus('…');
+  fetch(_apiBase() + '/api/ai-settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    body: JSON.stringify(payload)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) { _aiStatus(T.ai_save_failed); return; }
+      document.getElementById('aiApiKeyInput').value = '';
+      _aiStatus(T.ai_saved);
+      if (typeof cb === 'function') { cb(); return; }
+      location.reload();
+    })
+    .catch(function() { _aiStatus(T.ai_save_failed); });
+}
+
+function aiSettingsTest() {
+  aiSettingsSave(function() {
+    _aiStatus(T.ai_testing);
+    fetch(_apiBase() + '/api/ai-settings/test', {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        _aiStatus(data.ok ? T.ai_test_ok : T.ai_test_failed + ': ' + (data.error || ''));
+      })
+      .catch(function() { _aiStatus(T.ai_test_failed); });
+  });
+}
+
 // ── Data: Import ──────────────────────────────────────────────────────────────
 // Remember the token returned by /import/preview so confirmImport() can commit.
 var _importToken = null;
@@ -307,4 +390,5 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', fu
 document.addEventListener('DOMContentLoaded', function() {
   updateThemeSegmented();
   updateThemeDropdown();
+  if (document.getElementById('aiProviderSelect')) aiSettingsLoad();
 });

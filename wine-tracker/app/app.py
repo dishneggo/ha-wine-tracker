@@ -65,11 +65,23 @@ warn_missing_secret_key()
 # ── HA Add-on Options ─────────────────────────────────────────────────────────
 OPTIONS_PATH = os.environ.get("OPTIONS_PATH", "/data/options.json")
 
+AI_SETTING_KEYS = {
+    "ai_provider", "chat_model", "ollama_host",
+    "anthropic_api_key", "anthropic_model",
+    "openai_api_key", "openai_model",
+    "openrouter_api_key", "openrouter_model",
+    "ollama_model",
+    "minimax_api_key", "minimax_model",
+    "mistral_api_key", "mistral_model",
+}
+
+
 def load_options():
     """Read HA add-on options with sensible defaults."""
     defaults = {
         "currency": "CHF",
         "language": "de",
+        "chat_model": "",
         "ai_provider": "none",
         "anthropic_api_key": "",
         "anthropic_model": "claude-opus-4-8",
@@ -108,11 +120,24 @@ def load_options():
         "MINIMAX_MODEL": "minimax_model",
         "MISTRAL_API_KEY": "mistral_api_key",
         "MISTRAL_MODEL": "mistral_model",
+        "CHAT_MODEL": "chat_model",
     }
     for env_key, opt_key in env_map.items():
         val = os.environ.get(env_key)
         if val:
             defaults[opt_key] = val
+
+    # In-app AI settings (app_settings table) override HA options and env
+    db_path = globals().get("DB_PATH")
+    if db_path and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as conn:
+                rows = conn.execute("SELECT key, value FROM app_settings").fetchall()
+            for key, value in rows:
+                if key in AI_SETTING_KEYS and value:
+                    defaults[key] = value
+        except sqlite3.Error:
+            pass
 
     # Backward compat: auto-detect Anthropic from old config (pre-multi-provider)
     if defaults.get("ai_provider", "none") == "none" and defaults.get("anthropic_api_key", "").strip():
@@ -135,6 +160,18 @@ def _is_ai_configured(opts):
     elif provider == "mistral":
         return bool(opts.get("mistral_api_key", "").strip())
     return False
+
+
+def chat_opts(opts):
+    """Return opts with the provider model replaced by chat_model if set."""
+    chat_model = (opts.get("chat_model") or "").strip()
+    if not chat_model:
+        return opts
+    provider = opts.get("ai_provider", "none").strip().lower()
+    if provider in ("anthropic", "openai", "openrouter", "ollama", "minimax", "mistral"):
+        opts = dict(opts)
+        opts[f"{provider}_model"] = chat_model
+    return opts
 
 
 def _ssl_verify():
@@ -597,6 +634,14 @@ def init_db():
                 key   TEXT NOT NULL,
                 value TEXT NOT NULL,
                 PRIMARY KEY (user, key)
+            )
+        """)
+
+        # ── app_settings table (in-app AI settings) ───────────────────────
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
             )
         """)
 
@@ -2400,6 +2445,99 @@ def _preset_row_to_dict(row):
     return d
 
 
+AI_KEY_FIELDS = {
+    "anthropic_api_key", "openai_api_key", "openrouter_api_key",
+    "minimax_api_key", "mistral_api_key",
+}
+
+AI_PROVIDERS = ("anthropic", "openai", "openrouter", "ollama", "minimax", "mistral")
+
+
+def _ai_settings_forbidden():
+    if AUTH_ENABLED and session.get("role") == "readonly":
+        return jsonify(ok=False, error="forbidden"), 403
+    return None
+
+
+@app.route("/api/ai-settings")
+def api_ai_settings_get():
+    denied = _ai_settings_forbidden()
+    if denied:
+        return denied
+    opts = load_options()
+    db = get_db()
+    overrides = sorted(r["key"] for r in db.execute("SELECT key FROM app_settings").fetchall())
+    settings = {
+        "ai_provider": opts.get("ai_provider", "none"),
+        "chat_model": opts.get("chat_model", ""),
+        "ollama_host": opts.get("ollama_host", ""),
+    }
+    for p in AI_PROVIDERS:
+        settings[f"{p}_model"] = opts.get(f"{p}_model", "")
+    keys = {f: bool(opts.get(f, "").strip()) for f in AI_KEY_FIELDS}
+    return jsonify(ok=True, settings=settings, keys=keys, overrides=overrides,
+                   configured=_is_ai_configured(opts))
+
+
+@app.route("/api/ai-settings", methods=["POST"])
+def api_ai_settings_save():
+    denied = _ai_settings_forbidden()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if payload is None or not isinstance(payload, dict):
+        return jsonify(ok=False, error="json_body_required"), 400
+    db = get_db()
+    for key, value in payload.items():
+        if key not in AI_SETTING_KEYS:
+            continue
+        if value is None:
+            db.execute("DELETE FROM app_settings WHERE key=?", (key,))
+            continue
+        if not isinstance(value, str):
+            continue
+        value = value.strip()[:500]
+        if value == "":
+            if key not in AI_KEY_FIELDS:
+                db.execute("DELETE FROM app_settings WHERE key=?", (key,))
+            continue
+        db.execute(
+            "INSERT INTO app_settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
+    db.commit()
+    return jsonify(ok=True, configured=_is_ai_configured(load_options()))
+
+
+@app.route("/api/ai-settings/test", methods=["POST"])
+def api_ai_settings_test():
+    denied = _ai_settings_forbidden()
+    if denied:
+        return denied
+    opts = chat_opts(load_options())
+    provider = opts.get("ai_provider", "none").strip().lower()
+    if provider == "none" or not _is_ai_configured(opts):
+        return jsonify(ok=False, error="ai_not_configured"), 400
+    dispatch = {
+        "anthropic": _call_chat_anthropic,
+        "openai": _call_chat_openai,
+        "openrouter": _call_chat_openrouter,
+        "ollama": _call_chat_ollama,
+        "minimax": _call_chat_minimax,
+        "mistral": _call_chat_mistral,
+    }
+    try:
+        reply = dispatch[provider](
+            [{"role": "user", "content": "Reply with the single word OK."}],
+            "You are a connection test. Reply with OK.",
+            opts,
+        )
+        return jsonify(ok=True, reply=(reply or "").strip()[:100])
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)[:300]), 502
+
+
 PREF_KEYS = {
     "wine-theme", "wine-theme-name", "wineViewMode", "wineTableSortCol",
     "wineTableSortAsc", "wine-show-empty", "wine-advanced-filter-default",
@@ -2853,7 +2991,7 @@ def _process_chat_delete_wine(response_text, db):
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     """Wine sommelier chat - AI answers questions about the user's wine cellar."""
-    opts = load_options()
+    opts = chat_opts(load_options())
     provider = opts.get("ai_provider", "none").strip().lower()
     if provider == "none" or not _is_ai_configured(opts):
         return jsonify({"ok": False, "error": "ai_not_configured"}), 400
