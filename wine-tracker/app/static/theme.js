@@ -250,6 +250,48 @@ function confirmImport() {
     });
 }
 
+var PREF_KEYS = ['wine-theme', 'wine-theme-name', 'wineViewMode', 'wineTableSortCol',
+                 'wineTableSortAsc', 'wine-show-empty', 'wine-advanced-filter-default',
+                 'chatEditWines', 'chatRecording'];
+var _prefSyncTimer = null;
+
+function _collectPrefs() {
+  var prefs = {};
+  PREF_KEYS.forEach(function(k) {
+    var v = localStorage.getItem(k);
+    if (v !== null) prefs[k] = v;
+  });
+  return prefs;
+}
+
+function _schedulePrefSync() {
+  clearTimeout(_prefSyncTimer);
+  _prefSyncTimer = setTimeout(function() {
+    fetch((window.INGRESS !== undefined ? window.INGRESS : _ingressPrefix()) + '/api/prefs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify(_collectPrefs()),
+      keepalive: true
+    }).catch(function() {});
+  }, 400);
+}
+
+(function() {
+  var origSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(k, v) {
+    origSetItem(k, v);
+    if (PREF_KEYS.indexOf(k) !== -1) _schedulePrefSync();
+  };
+  var origRemoveItem = localStorage.removeItem.bind(localStorage);
+  localStorage.removeItem = function(k) {
+    origRemoveItem(k);
+    if (PREF_KEYS.indexOf(k) !== -1) _schedulePrefSync();
+  };
+  if (window._serverPrefsEmpty === true && Object.keys(_collectPrefs()).length) {
+    document.addEventListener('DOMContentLoaded', _schedulePrefSync);
+  }
+})();
+
 // Apply theme name on load (mode is handled by inline script + OS listener)
 (function() {
   var name = localStorage.getItem('wine-theme-name') || 'homeassistant';

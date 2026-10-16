@@ -369,3 +369,23 @@ class TestFilterPresetsTable:
         ).fetchone()
         conn.close()
         assert tables is not None
+
+
+class TestUserPrefsTable:
+    def test_user_prefs_table_created(self, app, db):
+        """init_db() should create the user_prefs table."""
+        row = db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='user_prefs'"
+        ).fetchone()
+        assert row is not None
+
+    def test_user_prefs_primary_key(self, app, db):
+        """Same user/key pair should be unique."""
+        db.execute("INSERT INTO user_prefs (user, key, value) VALUES ('default', 'wine-theme', 'dark')")
+        import sqlite3 as sql
+        try:
+            db.execute("INSERT INTO user_prefs (user, key, value) VALUES ('default', 'wine-theme', 'light')")
+            inserted_twice = True
+        except sql.IntegrityError:
+            inserted_twice = False
+        assert inserted_twice is False

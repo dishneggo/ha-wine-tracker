@@ -1257,3 +1257,96 @@ class TestDevAuth:
         resp = client.get("/", follow_redirects=False)
         assert resp.status_code == 302
         assert "/login" in resp.headers["Location"]
+
+
+# ── User preferences ──────────────────────────────────────────────────────────
+
+class TestUserPrefs:
+    """Tests for server-side persistence of UI preferences (/api/prefs)."""
+
+    def test_save_and_seed_prefs(self, client, db):
+        """POST /api/prefs stores whitelisted keys and seeds them into pages."""
+        resp = client.post("/api/prefs", json={"wine-theme": "dark", "wineViewMode": "table"})
+        assert resp.status_code == 200
+        assert resp.get_json()["ok"] is True
+        rows = {
+            r["key"]: r["value"]
+            for r in db.execute("SELECT key, value FROM user_prefs WHERE user='default'")
+        }
+        assert rows == {"wine-theme": "dark", "wineViewMode": "table"}
+        page = client.get("/")
+        assert b'"wine-theme": "dark"' in page.data
+
+    def test_unknown_keys_ignored(self, client, db):
+        """Keys outside the whitelist are not stored."""
+        client.post("/api/prefs", json={"evil-key": "x", "wine-theme": "light"})
+        rows = db.execute("SELECT key FROM user_prefs").fetchall()
+        assert [r["key"] for r in rows] == ["wine-theme"]
+
+    def test_post_replaces_previous_prefs(self, client, db):
+        """A POST replaces the full pref snapshot, removing absent keys."""
+        client.post("/api/prefs", json={"wine-theme": "dark", "wine-show-empty": "1"})
+        client.post("/api/prefs", json={"wine-theme": "light"})
+        rows = {
+            r["key"]: r["value"] for r in db.execute("SELECT key, value FROM user_prefs")
+        }
+        assert rows == {"wine-theme": "light"}
+
+    def test_non_string_values_ignored(self, client, db):
+        """Only string values are accepted."""
+        client.post("/api/prefs", json={"wine-theme": {"nested": True}, "wineViewMode": "cards"})
+        rows = {r["key"]: r["value"] for r in db.execute("SELECT key, value FROM user_prefs")}
+        assert rows == {"wineViewMode": "cards"}
+
+
+class TestUserPrefsAuth:
+    """Per-user separation and readonly access for /api/prefs."""
+
+    def _make_auth_app(self):
+        import app as wine_app
+
+        wine_app.AUTH_ENABLED = True
+        wine_app._USERS = {
+            "admin": {"hash": generate_password_hash("secret", method="pbkdf2:sha256"), "role": "admin"},
+            "viewer": {"hash": generate_password_hash("pass", method="pbkdf2:sha256"), "role": "readonly"},
+        }
+        wine_app.app.config["TESTING"] = True
+        wine_app.app.secret_key = "test-secret"
+        wine_app.init_db()
+        return wine_app.app.test_client()
+
+    def teardown_method(self):
+        import app as wine_app
+
+        wine_app.AUTH_ENABLED = False
+        wine_app._USERS = {}
+
+    def test_prefs_are_per_user(self, db):
+        """Each authenticated user gets an own pref set."""
+        client = self._make_auth_app()
+        client.post("/login", data={"username": "admin", "password": "secret"})
+        client.post("/api/prefs", json={"wine-theme": "dark"})
+        client.get("/logout")
+        client.post("/login", data={"username": "viewer", "password": "pass"})
+        client.post("/api/prefs", json={"wine-theme": "light"},
+                    headers={"X-Requested-With": "XMLHttpRequest"})
+        rows = {
+            r["user"]: r["value"]
+            for r in db.execute("SELECT user, value FROM user_prefs WHERE key='wine-theme'")
+        }
+        assert rows == {"admin": "dark", "viewer": "light"}
+
+    def test_readonly_can_save_prefs(self, db):
+        """Readonly users may store their own UI preferences."""
+        client = self._make_auth_app()
+        client.post("/login", data={"username": "viewer", "password": "pass"})
+        resp = client.post("/api/prefs", json={"wineViewMode": "list"},
+                           headers={"X-Requested-With": "XMLHttpRequest"})
+        assert resp.status_code == 200
+        assert resp.get_json()["ok"] is True
+
+    def test_prefs_require_login(self):
+        """Unauthenticated POSTs are rejected."""
+        client = self._make_auth_app()
+        resp = client.post("/api/prefs", json={"wine-theme": "dark"})
+        assert resp.status_code == 401

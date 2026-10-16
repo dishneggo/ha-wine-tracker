@@ -376,7 +376,7 @@ def check_readonly():
     if request.method in ("POST", "PUT", "DELETE"):
         # Allow login POST, chat API, chat sessions for readonly users
         # (session delete is blocked in the endpoint itself)
-        allowed = {"login", "api_chat", "api_chat_sessions_list", "api_chat_session_detail"}
+        allowed = {"login", "api_chat", "api_chat_sessions_list", "api_chat_session_detail", "api_prefs_save"}
         if request.endpoint not in allowed:
             if request.is_json or request.headers.get("X-Requested-With"):
                 return jsonify(ok=False, error="readonly"), 403
@@ -452,6 +452,10 @@ def inject_globals():
         ctx.setdefault("used_grapes", [])
         ctx.setdefault("used_purchased_at", [])
         ctx.setdefault("used_locations", [])
+    try:
+        ctx["user_prefs"] = load_user_prefs()
+    except Exception:
+        ctx["user_prefs"] = {}
     return ctx
 
 
@@ -575,6 +579,16 @@ def init_db():
                 conditions TEXT NOT NULL,
                 created    TEXT NOT NULL,
                 updated    TEXT NOT NULL
+            )
+        """)
+
+        # ── user_prefs table ──────────────────────────────────────────────
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS user_prefs (
+                user  TEXT NOT NULL,
+                key   TEXT NOT NULL,
+                value TEXT NOT NULL,
+                PRIMARY KEY (user, key)
             )
         """)
 
@@ -2345,6 +2359,46 @@ def _preset_row_to_dict(row):
     except (ValueError, TypeError):
         d["conditions"] = {}
     return d
+
+
+PREF_KEYS = {
+    "wine-theme", "wine-theme-name", "wineViewMode", "wineTableSortCol",
+    "wineTableSortAsc", "wine-show-empty", "wine-advanced-filter-default",
+    "chatEditWines", "chatRecording",
+}
+
+
+def prefs_user():
+    if AUTH_ENABLED:
+        return session.get("user") or "default"
+    return "default"
+
+
+def load_user_prefs():
+    if AUTH_ENABLED and not session.get("user"):
+        return {}
+    rows = get_db().execute(
+        "SELECT key, value FROM user_prefs WHERE user = ?", (prefs_user(),)
+    ).fetchall()
+    return {r["key"]: r["value"] for r in rows}
+
+
+@app.route("/api/prefs", methods=["POST"])
+def api_prefs_save():
+    payload = request.get_json(silent=True) or {}
+    prefs = {
+        k: str(v)[:200] for k, v in payload.items()
+        if k in PREF_KEYS and isinstance(v, str)
+    }
+    user = prefs_user()
+    db = get_db()
+    db.execute("DELETE FROM user_prefs WHERE user = ?", (user,))
+    db.executemany(
+        "INSERT INTO user_prefs (user, key, value) VALUES (?, ?, ?)",
+        [(user, k, v) for k, v in prefs.items()],
+    )
+    db.commit()
+    return jsonify(ok=True)
 
 
 @app.route("/api/filter-presets", methods=["GET", "POST"])
