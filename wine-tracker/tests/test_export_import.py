@@ -73,7 +73,7 @@ class TestExportRoute:
         zf = zipfile.ZipFile(io.BytesIO(resp.data))
         csv_text = zf.read("wines.csv").decode()
         lines = csv_text.strip().splitlines()
-        assert lines[0].startswith("name,year,type,region,grape")
+        assert lines[0].startswith("name,producer,year,type,region,grape")
         assert any("Château Test" in line for line in lines[1:])
 
 
@@ -238,6 +238,15 @@ class TestImportParsing:
         assert parsed["wines"][0]["name"] == "Riesling Spät"
         assert parsed["wines"][0]["year"] == 2020
         assert parsed["wines"][0]["grape"] == "Riesling"
+
+    def test_parse_csv_producer_alcohol_aliases(self):
+        """German aliases map to producer/alcohol_pct; broken values become None."""
+        from export_import import parse_import_file
+        csv_bytes = "name,produzent,alkohol\nBarolo,Marchesi di Barolo,14.5\nKaputt,Weingut X,abc\n".encode()
+        parsed = parse_import_file(csv_bytes, filename="alias.csv")
+        assert parsed["wines"][0]["producer"] == "Marchesi di Barolo"
+        assert parsed["wines"][0]["alcohol_pct"] == 14.5
+        assert parsed["wines"][1]["alcohol_pct"] is None
 
     def test_parse_csv_without_name_raises(self):
         from export_import import parse_import_file, ImportError
@@ -474,7 +483,8 @@ class TestImportRoutes:
 
         restored = db.execute("SELECT * FROM wines").fetchone()
         for col in ("name", "year", "type", "region", "grape", "rating",
-                    "quantity", "price", "location", "bottle_format"):
+                    "quantity", "price", "location", "bottle_format",
+                    "producer", "alcohol_pct"):
             assert restored[col] == original[col], f"mismatch on {col}"
 
     def test_image_is_restored_on_import(self, client, db, upload_dir):

@@ -1350,3 +1350,80 @@ class TestUserPrefsAuth:
         client = self._make_auth_app()
         resp = client.post("/api/prefs", json={"wine-theme": "dark"})
         assert resp.status_code == 401
+
+
+# ── Producer & alcohol fields ─────────────────────────────────────────────────
+
+class TestProducerAlcoholFields:
+    """Tests for the producer and alcohol_pct wine fields (issue #25)."""
+
+    def test_add_with_producer_and_alcohol(self, client, db):
+        """Adding a wine stores producer and alcohol_pct."""
+        resp = client.post(
+            "/add",
+            data={"name": "Barolo", "quantity": "2", "producer": "Marchesi di Barolo",
+                  "alcohol_pct": "14.5"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        assert resp.status_code == 200
+        wine = resp.get_json()["wine"]
+        assert wine["producer"] == "Marchesi di Barolo"
+        assert wine["alcohol_pct"] == 14.5
+
+    def test_add_without_producer_and_alcohol(self, client):
+        """Both fields are optional and default to null."""
+        resp = client.post(
+            "/add", data={"name": "Simple", "quantity": "1"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        wine = resp.get_json()["wine"]
+        assert wine["producer"] is None
+        assert wine["alcohol_pct"] is None
+
+    def test_edit_updates_producer_and_alcohol(self, client, sample_wine):
+        """Editing a wine updates both fields."""
+        wine_id = sample_wine["wine"]["id"]
+        resp = client.post(
+            f"/edit/{wine_id}",
+            data={"name": sample_wine["wine"]["name"], "quantity": "1",
+                  "producer": "Neue Kellerei", "alcohol_pct": "12.0"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        wine = resp.get_json()["wine"]
+        assert wine["producer"] == "Neue Kellerei"
+        assert wine["alcohol_pct"] == 12.0
+
+    def test_minimal_edit_keeps_producer_and_alcohol(self, client, sample_wine):
+        """A FormData without the keys (qty popover) must not wipe the fields."""
+        wine_id = sample_wine["wine"]["id"]
+        client.post(
+            f"/edit/{wine_id}",
+            data={"name": sample_wine["wine"]["name"], "quantity": "1",
+                  "producer": "Kellerei X", "alcohol_pct": "13.5"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        resp = client.post(
+            f"/edit/{wine_id}",
+            data={"name": sample_wine["wine"]["name"], "quantity": "3"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        wine = resp.get_json()["wine"]
+        assert wine["producer"] == "Kellerei X"
+        assert wine["alcohol_pct"] == 13.5
+
+    def test_duplicate_copies_producer_and_alcohol(self, client, db):
+        """Duplicating a wine carries both fields over."""
+        resp = client.post(
+            "/add",
+            data={"name": "Orig", "quantity": "1", "producer": "Weingut Y",
+                  "alcohol_pct": "13.0"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        wine_id = resp.get_json()["wine"]["id"]
+        resp = client.post(
+            f"/duplicate/{wine_id}", data={"quantity": "1"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        dup = resp.get_json()["wine"]
+        assert dup["producer"] == "Weingut Y"
+        assert dup["alcohol_pct"] == 13.0

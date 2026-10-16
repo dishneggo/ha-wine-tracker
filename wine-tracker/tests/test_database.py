@@ -77,7 +77,8 @@ class TestInitDb:
         conn.close()
 
         for col in ["purchased_at", "price", "drink_from", "drink_until",
-                     "location", "grape", "vivino_id", "bottle_format"]:
+                     "location", "grape", "vivino_id", "bottle_format",
+                     "producer", "alcohol_pct"]:
             assert col in cols, f"Migration did not add column: {col}"
 
     def test_bottle_format_default_value(self, app, db):

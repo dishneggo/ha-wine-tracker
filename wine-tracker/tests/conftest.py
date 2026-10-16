@@ -107,6 +107,8 @@ def sample_wine(client):
             "location": "Keller A",
             "grape": "Merlot",
             "bottle_format": "0.75",
+            "producer": "Domaine Test",
+            "alcohol_pct": "13.5",
         },
         headers={"X-Requested-With": "XMLHttpRequest"},
     )

@@ -18,9 +18,10 @@
 var wineFormSnapshot = '';
 
 function getWineFormState() {
-  var fields = ['wine_name','wine_year','wine_qty','wine_type','wine_region',
+  var fields = ['wine_name','wine_producer','wine_year','wine_qty','wine_type','wine_region',
                 'wine_notes','wine_purchased_at','wine_price','wine_drink_from',
-                'wine_drink_until','wine_location','wine_grape','wine_bottle_format'];
+                'wine_drink_until','wine_location','wine_grape','wine_bottle_format',
+                'wine_alcohol_pct'];
   var parts = fields.map(function(id) { return document.getElementById(id).value; });
   for (var i = 1; i <= 5; i++) {
     var el = document.getElementById('wine_star' + i);

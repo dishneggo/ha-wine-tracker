@@ -8,6 +8,16 @@
   <input type="text" name="name" id="wine_name" required placeholder="{{ t.placeholder_name }}">
 </div>
 
+<div>
+  <label>{{ t.label_producer }}</label>
+  <input type="text" name="producer" id="wine_producer" placeholder="{{ t.placeholder_producer }}" list="producerList" autocomplete="off">
+  <datalist id="producerList">
+    {% for p in used_producers %}
+    <option value="{{ p }}">
+    {% endfor %}
+  </datalist>
+</div>
+
 <div class="row2">
   <div>
     <label>{{ t.label_vintage }}</label>
@@ -102,6 +112,11 @@
     <label>{{ t.label_drink_until }}</label>
     <input type="number" name="drink_until" id="wine_drink_until" min="2000" max="2099" placeholder="2030">
   </div>
+</div>
+
+<div>
+  <label>{{ t.label_alcohol_pct }}</label>
+  <input type="number" name="alcohol_pct" id="wine_alcohol_pct" min="0" max="25" step="0.1" placeholder="13.5">
 </div>
 
 <div>

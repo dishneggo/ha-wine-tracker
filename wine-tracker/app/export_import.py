@@ -50,12 +50,15 @@ WINE_COLUMNS = [
     "maturity_data",
     "taste_profile",
     "food_pairings",
+    "producer",
+    "alcohol_pct",
 ]
 
 # A subset of columns presented in the CSV for readability. The JSON
 # remains the full / authoritative copy.
 CSV_COLUMNS = [
     "name",
+    "producer",
     "year",
     "type",
     "region",
@@ -68,6 +71,7 @@ CSV_COLUMNS = [
     "drink_until",
     "location",
     "bottle_format",
+    "alcohol_pct",
     "notes",
     "image",
     "vivino_id",
@@ -130,6 +134,8 @@ def _build_readme(manifest: dict) -> str:
 | `drink_until` | integer | Latest recommended drinking year |
 | `location` | string | Storage location label |
 | `bottle_format` | number | Bottle volume in liters, e.g. `0.75`, `1.5` |
+| `producer` | string | Producer / winery name |
+| `alcohol_pct` | number | Alcohol content in % vol, e.g. `13.5` |
 | `notes` | string | Free-text tasting notes |
 | `image` | string | Image filename (file lives in `images/`) |
 | `vivino_id` | integer | Vivino wine ID (used for deduplication on import) |
@@ -263,6 +269,10 @@ CSV_ALIASES = {
     "location": "location",
     "lager": "location",
     "bottle_format": "bottle_format",
+    "producer": "producer",
+    "produzent": "producer",
+    "alcohol_pct": "alcohol_pct",
+    "alkohol": "alcohol_pct",
     "notes": "notes",
     "notizen": "notes",
     "image": "image",
@@ -307,6 +317,7 @@ def _normalize_wine(w: dict) -> dict:
     out["vivino_id"] = _coerce_int(out.get("vivino_id"))
     bf = _coerce_float(out.get("bottle_format"))
     out["bottle_format"] = bf if bf is not None else 0.75
+    out["alcohol_pct"] = _coerce_float(out.get("alcohol_pct"))
     # Image must be a bare filename - reject path traversal from crafted files
     # (the value later ends up in os.remove() when the image is replaced).
     img = out.get("image")

@@ -107,6 +107,8 @@
        data-drink_from="{{ w['drink_from'] or '' }}" data-drink_until="{{ w['drink_until'] or '' }}"
        data-location="{{ w['location'] or '' }}"
        data-grape="{{ w['grape'] or '' }}"
+       data-producer="{{ w['producer'] or '' }}"
+       data-alcohol_pct="{{ w['alcohol_pct'] or '' }}"
        data-vivino_id="{{ w['vivino_id'] or '' }}"
        data-bottle_format="{{ w['bottle_format'] or '0.75' }}">
 
@@ -133,6 +135,7 @@
       <div class="card-name" title="{{ w['name'] }}">{{ w['name'] }}</div>
       <div class="card-meta">
         <span>{{ w['year'] or '' }}</span>
+        {% if w['producer'] %}<span>{{ w['producer'] }}</span>{% endif %}
         <span>{{ w['region'] or '' }}</span>
       </div>
       {% if w['rating'] %}
@@ -455,6 +458,7 @@ function applyFilters() {
     // Search match (name, region, notes)
     var searchOk = !query ||
       (d.name || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.producer || '').toLowerCase().indexOf(query) !== -1 ||
       (d.region || '').toLowerCase().indexOf(query) !== -1 ||
       (d.year || '').indexOf(query) !== -1 ||
       (d.grape || '').toLowerCase().indexOf(query) !== -1 ||
@@ -530,6 +534,7 @@ function updateTabCounts() {
     var d = card.dataset;
     var searchOk = !query ||
       (d.name || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.producer || '').toLowerCase().indexOf(query) !== -1 ||
       (d.region || '').toLowerCase().indexOf(query) !== -1 ||
       (d.year || '').indexOf(query) !== -1 ||
       (d.grape || '').toLowerCase().indexOf(query) !== -1 ||
@@ -777,6 +782,8 @@ function getCardData(el) {
     drink_until: d.drink_until ? parseInt(d.drink_until) : null,
     location: d.location || null,
     grape: d.grape || null,
+    producer: d.producer || null,
+    alcohol_pct: d.alcohol_pct ? parseFloat(d.alcohol_pct) : null,
     bottle_format: d.bottle_format ? parseFloat(d.bottle_format) : 0.75,
     vivino_id: d.vivino_id ? parseInt(d.vivino_id) : null
   }};
@@ -1003,6 +1010,7 @@ function openViewModal(id, wine) {
   var details = '';
 
   // Quantity (always shown)
+  if (w.producer) details += viewRow('mdi-home-city-outline', T.label_producer || 'Producer', w.producer);
   details += viewRow('mdi-bottle-wine', T.label_quantity || 'Quantity', w.quantity);
 
   // Bottle format (only if not standard)
@@ -1013,6 +1021,7 @@ function openViewModal(id, wine) {
 
   // Grape
   if (w.grape) details += viewRow('mdi-fruit-grapes', T.label_grape || 'Grape', w.grape);
+  if (w.alcohol_pct) details += viewRow('mdi-percent-outline', T.label_alcohol_pct || 'Alcohol', w.alcohol_pct + '% vol');
 
   // Purchased at
   if (w.purchased_at) details += viewRow('mdi-cart', T.label_purchased_at || 'Purchased at', w.purchased_at);
@@ -1179,6 +1188,7 @@ function renderCard(w) {
   var notesHtml = w.notes ? '<div class="card-notes">' + escapeHtml(w.notes) + '</div>' : '';
 
   var metaParts = '<span>' + (w.year || '') + '</span>';
+  if (w.producer) metaParts += '<span>' + escapeHtml(w.producer) + '</span>';
   metaParts += '<span>' + (w.region ? escapeHtml(w.region) : '') + '</span>';
 
   // Ribbon
@@ -1226,6 +1236,8 @@ function updateCardData(card, w) {
   card.dataset.drink_until = w.drink_until || '';
   card.dataset.location = w.location || '';
   card.dataset.grape = w.grape || '';
+  card.dataset.producer = w.producer || '';
+  card.dataset.alcohol_pct = w.alcohol_pct || '';
   card.dataset.bottle_format = w.bottle_format || '0.75';
   card.dataset.vivino_id = w.vivino_id || '';
   card.classList.toggle('empty', w.quantity == 0);

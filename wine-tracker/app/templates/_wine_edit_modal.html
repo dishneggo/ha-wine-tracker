@@ -191,6 +191,7 @@ function openWineModal(id, wine) {
   // Fill fields (empty for add, data for edit)
   var w = wine || {};
   document.getElementById('wine_name').value = w.name || '';
+  document.getElementById('wine_producer').value = w.producer || '';
   document.getElementById('wine_year').value = w.year || '';
   document.getElementById('wine_qty').value = w.quantity !== undefined ? w.quantity : 1;
   document.getElementById('wine_type').value = w.type || '';
@@ -203,6 +204,7 @@ function openWineModal(id, wine) {
   document.getElementById('wine_location').value = w.location || '';
   document.getElementById('wine_grape').value = w.grape || '';
   document.getElementById('wine_bottle_format').value = w.bottle_format || '0.75';
+  document.getElementById('wine_alcohol_pct').value = w.alcohol_pct || '';
   document.getElementById('wine_vivino_id').value = w.vivino_id || '';
   document.getElementById('wine_maturity_data').value = w.maturity_data ? JSON.stringify(w.maturity_data) : '';
   document.getElementById('wine_taste_profile').value = w.taste_profile ? JSON.stringify(w.taste_profile) : '';
@@ -560,6 +562,7 @@ function startAiAnalysis(file) {
 function populateFormFromAi(fields, imageFilename) {
   if (_reloadMode) { populateFormMerge(fields, imageFilename); return; }
   if (fields.name) document.getElementById('wine_name').value = fields.name;
+  if (fields.producer) document.getElementById('wine_producer').value = fields.producer;
   if (fields.vintage) document.getElementById('wine_year').value = fields.vintage;
   if (fields.wine_type) document.getElementById('wine_type').value = fields.wine_type;
   if (fields.region) document.getElementById('wine_region').value = fields.region;
@@ -569,6 +572,7 @@ function populateFormFromAi(fields, imageFilename) {
   if (fields.drink_until) document.getElementById('wine_drink_until').value = fields.drink_until;
   if (fields.notes) document.getElementById('wine_notes').value = fields.notes;
   if (fields.bottle_format) document.getElementById('wine_bottle_format').value = fields.bottle_format;
+  if (fields.alcohol_pct) document.getElementById('wine_alcohol_pct').value = fields.alcohol_pct;
 
   // Enrichment fields - hidden inputs that persist to DB on submit
   if (fields.maturity_data) {
@@ -620,6 +624,7 @@ function populateFormMerge(fields, imageFilename) {
     if (el && !el.value.trim()) { el.value = val; filled++; }
   }
   setIfEmpty('wine_name', fields.name);
+  setIfEmpty('wine_producer', fields.producer);
   setIfEmpty('wine_year', fields.vintage);
   setIfEmpty('wine_type', fields.wine_type);
   setIfEmpty('wine_region', fields.region);
@@ -628,6 +633,7 @@ function populateFormMerge(fields, imageFilename) {
   setIfEmpty('wine_drink_from', fields.drink_from);
   setIfEmpty('wine_drink_until', fields.drink_until);
   setIfEmpty('wine_notes', fields.notes);
+  setIfEmpty('wine_alcohol_pct', fields.alcohol_pct);
   if (fields.bottle_format && fields.bottle_format != 0.75) {
     document.getElementById('wine_bottle_format').value = fields.bottle_format;
     filled++;
