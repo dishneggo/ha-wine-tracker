@@ -1,6 +1,6 @@
 name: "Wine Tracker (Dev)"
 description: "Development build of Wine Tracker - unstable, for testing"
-version: "1.11.0-dev.2"
+version: "1.11.0-dev.3"
 slug: "wine_tracker_dev"
 url: "https://github.com/xenofex7/ha-wine-tracker"
 init: false

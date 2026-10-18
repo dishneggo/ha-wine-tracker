@@ -1,9 +1,8 @@
 # Changelog
 
-## 1.11.0-dev.2
+## 1.11.0-dev.3
 
-- Polish settings modal for mobile and fix tab bar scrollbar
-- Anchor settings modal top edge instead of vertical centering
+- Fix cramped mobile layout in the settings modal
 
 
 ## 1.11.0
