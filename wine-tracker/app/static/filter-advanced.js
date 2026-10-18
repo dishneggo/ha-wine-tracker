@@ -718,7 +718,7 @@
   function overwriteEditingPreset() {
     if (!state.editingId) return;
     var name = (state.editingName || '').trim();
-    if (!name) { window.alert(tr('filter_preset_save_prompt')); return; }
+    if (!name) { appToast(tr('filter_preset_save_prompt'), 'error'); return; }
     fetch(apiBase() + '/' + state.editingId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -726,7 +726,7 @@
     }).then(function (r) { return r.json().then(function (d) { return { status: r.status, data: d }; }); })
       .then(function (res) {
         if (res.status === 409) {
-          window.alert(tr('filter_preset_name_exists'));
+          appToast(tr('filter_preset_name_exists'), 'error');
           return;
         }
         if (res.data && res.data.ok) {
@@ -746,7 +746,12 @@
   }
 
   function confirmDeletePreset(preset) {
-    if (!window.confirm(tr('filter_preset_delete_confirm'))) return;
+    appConfirm(tr('filter_preset_delete_confirm')).then(function (ok) {
+      if (ok) deletePreset(preset);
+    });
+  }
+
+  function deletePreset(preset) {
     fetch(apiBase() + '/' + preset.id, { method: 'DELETE' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -820,7 +825,7 @@
     }).then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
       .then(function (res) {
         if (res.status === 409) {
-          window.alert(tr('filter_preset_name_exists'));
+          appToast(tr('filter_preset_name_exists'), 'error');
           return;
         }
         if (res.data && res.data.ok) {
@@ -864,7 +869,7 @@
     if (input) {
       input.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') { e.preventDefault(); confirmNameDialog(); }
-        else if (e.key === 'Escape') { e.preventDefault(); closeNameDialog(); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeNameDialog(); }
       });
     }
   })();
@@ -877,6 +882,7 @@
     reset: reset,
     updateBadge: updateBadge,
     openSaveDialog: openSaveDialog,
+    closeNameDialog: closeNameDialog,
     openSaveAsNewDialog: openSaveAsNewDialog,
     closeNameDialog: closeNameDialog,
     confirmNameDialog: confirmNameDialog,

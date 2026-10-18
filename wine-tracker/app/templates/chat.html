@@ -136,31 +136,6 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
-// Close modal on overlay click (skip wineModal - handled by _wine_edit_modal.html)
-document.querySelectorAll('.modal-overlay').forEach(function(el) {
-  el.addEventListener('click', function(e) {
-    if (e.target !== el) return;
-    if (el.id === 'wineModal') return;
-    closeModal(el.id);
-  });
-});
-
-// ESC closes modals, lightbox & nav menu (wineModal: guard if dirty)
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    closeLightbox();
-    var navMenu = document.getElementById('navMenu');
-    if (navMenu) navMenu.classList.remove('open');
-    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
-      if (el.id === 'wineModal') {
-        tryCloseWineModal();
-      } else {
-        el.classList.remove('open');
-      }
-    });
-  }
-});
-
 // ── View Modal functions ──────────────────────────────────
 function escapeHtml(s) {
   if (!s) return '';
@@ -434,7 +409,12 @@ function startNewChatSession() {
 }
 
 function deleteChatSession(sessionId) {
-  if (!confirm(T.chat_delete_confirm || 'Really delete this chat?')) return;
+  appConfirm(T.chat_delete_confirm || 'Really delete this chat?').then(function(ok) {
+    if (ok) doDeleteChatSession(sessionId);
+  });
+}
+
+function doDeleteChatSession(sessionId) {
   fetch(INGRESS + '/api/chat/sessions/' + sessionId, {method: 'DELETE'})
     .then(function(r) { return r.json(); })
     .then(function(data) {

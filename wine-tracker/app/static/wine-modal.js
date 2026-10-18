@@ -38,7 +38,10 @@ function isWineFormDirty() {
 
 function tryCloseWineModal() {
   if (isWineFormDirty()) {
-    if (!confirm(T.confirm_discard)) return;
+    appConfirm(T.confirm_discard).then(function(ok) {
+      if (ok) closeModal('wineModal');
+    });
+    return;
   }
   closeModal('wineModal');
 }
@@ -89,7 +92,12 @@ function rotateWineImage() {
 }
 
 function deleteWineImage() {
-  if (!confirm('Delete photo?')) return;
+  appConfirm(T.confirm_delete_photo || 'Delete photo?').then(function(ok) {
+    if (ok) doDeleteWineImage();
+  });
+}
+
+function doDeleteWineImage() {
   document.getElementById('deleteImageField').value = '1';
   var preview = document.getElementById('winePreview');
   var img = preview.querySelector('img');

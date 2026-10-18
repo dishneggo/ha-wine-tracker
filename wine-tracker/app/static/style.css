@@ -1115,7 +1115,9 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
   padding: .3rem .6rem; border-radius: 6px; transition: background .15s;
 }
 .qty-undo-toast button:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.qty-undo-toast.error #qtyUndoMsg { color: var(--danger); }
+.qty-undo-toast.error span { color: var(--danger); }
+.app-confirm-overlay { z-index: 220; }
+.app-confirm-body { padding: 1.25rem; font-size: .95rem; }
 
 /* ── Settings Modal ───────────────────────────────────────────────────────── */
 #settingsModal.modal-overlay { align-items: flex-start; }

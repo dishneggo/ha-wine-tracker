@@ -269,7 +269,12 @@ function escapeHtmlChat(s) {
 }
 
 function deleteChatSession(sessionId) {
-  if (!confirm(T.chat_delete_confirm || 'Really delete this chat?')) return;
+  appConfirm(T.chat_delete_confirm || 'Really delete this chat?').then(function(ok) {
+    if (ok) doDeleteChatSession(sessionId);
+  });
+}
+
+function doDeleteChatSession(sessionId) {
   fetch(INGRESS + '/api/chat/sessions/' + sessionId, {method: 'DELETE'})
     .then(function(r) { return r.json(); })
     .then(function(data) {

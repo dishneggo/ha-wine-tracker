@@ -127,27 +127,6 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
-// Close modal on overlay click (skip wineModal - handled by _wine_edit_modal.html)
-document.querySelectorAll('.modal-overlay').forEach(function(el) {
-  el.addEventListener('click', function(e) {
-    if (e.target !== el) return;
-    if (el.id === 'wineModal') return;
-    closeModal(el.id);
-  });
-});
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    closeLightbox();
-    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
-      if (el.id === 'wineModal') {
-        tryCloseWineModal();
-      } else {
-        el.classList.remove('open');
-      }
-    });
-  }
-});
-
 // ── View Modal functions ──────────────────────────────────
 function escapeHtml(s) {
   if (!s) return '';

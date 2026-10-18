@@ -398,7 +398,7 @@ function _ingressPrefix() {
 
 function _showImportError(msg) {
   var el = document.getElementById('importError');
-  if (!el) { alert(msg); return; }
+  if (!el) { appToast(msg, 'error'); return; }
   el.textContent = msg;
   el.style.display = 'block';
 }
@@ -553,6 +553,128 @@ function _schedulePrefSync() {
   var name = localStorage.getItem('wine-theme-name') || 'homeassistant';
   applyThemeName(name);
 })();
+
+// ── Shared toast (pages without their own qtyUndoToast host) ─────────────────
+var _appToastTimer = null;
+function appToast(message, kind) {
+  if (kind === 'error' && typeof showErrorToast === 'function') { showErrorToast(message); return; }
+  var el = document.getElementById('appToast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'appToast';
+    el.className = 'qty-undo-toast';
+    el.style.display = 'none';
+    el.innerHTML = '<span></span>';
+    document.body.appendChild(el);
+  }
+  el.querySelector('span').textContent = message;
+  el.classList.toggle('error', kind === 'error');
+  el.style.display = 'flex';
+  el.style.opacity = '1';
+  clearTimeout(_appToastTimer);
+  _appToastTimer = setTimeout(function() {
+    el.style.opacity = '0';
+    setTimeout(function() { el.style.display = 'none'; }, 400);
+  }, kind === 'error' ? 4000 : 2500);
+}
+
+// ── Shared confirm dialog (replaces native confirm, blocked in HA ingress) ───
+var _appConfirmResolve = null;
+function _ensureAppConfirm() {
+  var el = document.getElementById('appConfirmDialog');
+  if (el) return el;
+  el = document.createElement('div');
+  el.className = 'modal-overlay app-confirm-overlay';
+  el.id = 'appConfirmDialog';
+  el.innerHTML = '<div class="modal" style="max-width:360px">' +
+    '<div class="app-confirm-body" id="appConfirmMsg"></div>' +
+    '<div class="delete-confirm-actions">' +
+    '<button type="button" class="btn-cancel" id="appConfirmCancel"></button>' +
+    '<button type="button" class="btn-delete" id="appConfirmOk"></button>' +
+    '</div></div>';
+  document.body.appendChild(el);
+  el.addEventListener('click', function(e) { if (e.target === el) _appConfirmClose(false); });
+  el.querySelector('#appConfirmCancel').addEventListener('click', function() { _appConfirmClose(false); });
+  el.querySelector('#appConfirmOk').addEventListener('click', function() { _appConfirmClose(true); });
+  return el;
+}
+function _appConfirmClose(result) {
+  var el = document.getElementById('appConfirmDialog');
+  if (el) el.classList.remove('open');
+  var resolve = _appConfirmResolve;
+  _appConfirmResolve = null;
+  if (resolve) resolve(result);
+}
+function appConfirm(message, opts) {
+  opts = opts || {};
+  var el = _ensureAppConfirm();
+  var tr = window.T || {};
+  el.querySelector('#appConfirmMsg').textContent = message;
+  el.querySelector('#appConfirmCancel').textContent = opts.cancelLabel || tr.btn_cancel || 'Cancel';
+  var ok = el.querySelector('#appConfirmOk');
+  ok.textContent = opts.okLabel || 'OK';
+  return new Promise(function(resolve) {
+    _appConfirmResolve = resolve;
+    el.classList.add('open');
+    setTimeout(function() { try { ok.focus(); } catch (e) {} }, 50);
+  });
+}
+
+// ── Shared close behavior: one layer per ESC, overlay click closes itself ────
+function closeTopLayer() {
+  var nav = document.getElementById('navMenu');
+  if (nav && nav.classList.contains('open')) { nav.classList.remove('open'); return true; }
+  var themeDd = document.querySelector('.theme-dropdown.open');
+  if (themeDd) { themeDd.classList.remove('open'); return true; }
+  var modelDd = document.getElementById('aiModelDd');
+  if (modelDd && modelDd.style.display === 'block') { closeModelDd(); return true; }
+  var filterDd = document.getElementById('filterDropdown');
+  if (filterDd && filterDd.classList.contains('open')) { filterDd.classList.remove('open'); return true; }
+  var qtyPop = document.getElementById('qtyPopover');
+  if (qtyPop && qtyPop.style.display === 'flex') {
+    if (typeof closeQtyPopover === 'function') closeQtyPopover(); else qtyPop.style.display = 'none';
+    return true;
+  }
+  var reloadPop = document.getElementById('reloadPopover');
+  if (reloadPop && reloadPop.style.display && reloadPop.style.display !== 'none') {
+    if (typeof closeReloadPopover === 'function') closeReloadPopover();
+    return true;
+  }
+  var lb = document.getElementById('lightbox');
+  if (lb && lb.classList.contains('open')) {
+    if (typeof closeLightbox === 'function') closeLightbox(); else lb.classList.remove('open');
+    return true;
+  }
+  var confirmDlg = document.getElementById('appConfirmDialog');
+  if (confirmDlg && confirmDlg.classList.contains('open')) { _appConfirmClose(false); return true; }
+  var nameDlg = document.getElementById('advFilterNameDialog');
+  if (nameDlg && nameDlg.classList.contains('open')) {
+    if (window.AdvancedFilter && AdvancedFilter.closeNameDialog) AdvancedFilter.closeNameDialog();
+    else nameDlg.classList.remove('open');
+    return true;
+  }
+  var overlays = document.querySelectorAll('.modal-overlay.open');
+  for (var i = overlays.length - 1; i >= 0; i--) {
+    var el = overlays[i];
+    if (el.id === 'advFilterNameDialog' || el.id === 'appConfirmDialog') continue;
+    if (el.id === 'wineModal' && typeof tryCloseWineModal === 'function') tryCloseWineModal();
+    else if (el.id === 'advancedFilterModal' && window.AdvancedFilter) AdvancedFilter.closeModal();
+    else el.classList.remove('open');
+    return true;
+  }
+  return false;
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  if (closeTopLayer()) e.preventDefault();
+});
+document.addEventListener('click', function(e) {
+  var el = e.target;
+  if (!el.classList || !el.classList.contains('modal-overlay') || !el.classList.contains('open')) return;
+  if (el.id === 'wineModal' || el.id === 'advFilterNameDialog' || el.id === 'appConfirmDialog') return;
+  if (el.id === 'advancedFilterModal' && window.AdvancedFilter) { AdvancedFilter.closeModal(); return; }
+  el.classList.remove('open');
+});
 
 // Keyboard activation for non-native click targets (tabindex="0" + onclick)
 document.addEventListener('keydown', function(e) {

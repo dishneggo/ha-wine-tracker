@@ -754,32 +754,6 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
-// Close on overlay click (skip wineModal - handled by _wine_edit_modal.html)
-document.querySelectorAll('.modal-overlay').forEach(function(el) {
-  el.addEventListener('click', function(e) {
-    if (e.target !== el) return;
-    if (el.id === 'wineModal') return; // handled by include
-    if (el.id === 'advancedFilterModal' && window.AdvancedFilter) { AdvancedFilter.closeModal(); return; }
-    el.classList.remove('open');
-  });
-});
-
-// ESC closes modals & lightbox (wineModal: guard if dirty)
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    closeLightbox();
-    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
-      if (el.id === 'wineModal') {
-        tryCloseWineModal();
-      } else if (el.id === 'advancedFilterModal' && window.AdvancedFilter) {
-        AdvancedFilter.closeModal();
-      } else {
-        el.classList.remove('open');
-      }
-    });
-  }
-});
-
 // Helper: get wine data from closest .card element
 function getCardData(el) {
   const card = el.closest('.card');

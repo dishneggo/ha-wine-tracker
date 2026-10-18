@@ -299,6 +299,7 @@ TRANSLATIONS = {
 
     # Discard
     "confirm_discard": "Änderungen verwerfen?",
+    "confirm_delete_photo": "Foto löschen?",
 
     # Lightbox
     "lightbox_alt": "Etikett",
@@ -672,6 +673,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Test link",
 
     "confirm_discard": "Discard changes?",
+    "confirm_delete_photo": "Delete photo?",
 
     "lightbox_alt": "Label",
 
@@ -1043,6 +1045,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Tester le lien",
 
     "confirm_discard": "Annuler les modifications ?",
+    "confirm_delete_photo": "Supprimer la photo ?",
 
     "lightbox_alt": "Étiquette",
 
@@ -1414,6 +1417,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Testa il link",
 
     "confirm_discard": "Annullare le modifiche?",
+    "confirm_delete_photo": "Eliminare la foto?",
 
     "lightbox_alt": "Etichetta",
 
@@ -1785,6 +1789,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Probar enlace",
 
     "confirm_discard": "¿Descartar cambios?",
+    "confirm_delete_photo": "¿Eliminar la foto?",
 
     "lightbox_alt": "Etiqueta",
 
@@ -2156,6 +2161,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Testar link",
 
     "confirm_discard": "Descartar alterações?",
+    "confirm_delete_photo": "Eliminar a foto?",
 
     "lightbox_alt": "Rótulo",
 
@@ -2527,6 +2533,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Link testen",
 
     "confirm_discard": "Wijzigingen verwerpen?",
+    "confirm_delete_photo": "Foto verwijderen?",
 
     "lightbox_alt": "Etiket",
 
