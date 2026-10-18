@@ -1,6 +1,6 @@
 services:
   wine-tracker:
-    image: ghcr.io/xenofex7/wine-tracker:latest
+    image: ghcr.io/xenofex7/wine-tracker:1.11.0
     # To build locally instead, comment out 'image' and uncomment:
     # build:
     #   context: ..
@@ -8,7 +8,7 @@ services:
     ports:
       - "5050:5050"
     volumes:
-      - .:/data
+      - wine-data:/data
     environment:
       # ── Authentication ──────────────────────────────────────────────
       - AUTH_ENABLED=true
@@ -49,6 +49,10 @@ services:
       # Mistral:
       # - MISTRAL_API_KEY=...
       # - MISTRAL_MODEL=mistral-medium-latest
+
+      # Separate model for the sommelier chat only (empty = same model
+      # as label recognition):
+      # - CHAT_MODEL=
 
     restart: unless-stopped
 

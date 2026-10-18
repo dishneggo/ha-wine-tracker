@@ -36,6 +36,7 @@ options:
   minimax_model: "MiniMax-M3"
   mistral_api_key: ""
   mistral_model: "mistral-medium-latest"
+  chat_model: ""
 schema:
   currency: str
   language: str
@@ -52,5 +53,6 @@ schema:
   minimax_model: str?
   mistral_api_key: str?
   mistral_model: str?
+  chat_model: str?
 map:
   - share:rw

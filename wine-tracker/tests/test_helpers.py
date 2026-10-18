@@ -521,3 +521,26 @@ class TestCleanupOrphanUploads:
         assert (upload_dir / "wine-ref.jpg").exists()
         assert (upload_dir / "chat-ref.jpg").exists()
         assert (upload_dir / "orphan-fresh.jpg").exists()
+
+
+class TestAddonConfigSchema:
+    @staticmethod
+    def _config_block(name):
+        path = os.path.join(APP_DIR, "..", "config.yaml")
+        keys, inside = set(), False
+        with open(path) as f:
+            for line in f:
+                if line.startswith(f"{name}:"):
+                    inside = True
+                elif inside and not line.startswith("  "):
+                    inside = False
+                elif inside:
+                    keys.add(line.split(":", 1)[0].strip())
+        return keys
+
+    def test_every_option_default_is_declared(self, monkeypatch):
+        monkeypatch.setattr(wine_app, "OPTIONS_PATH", "/nonexistent/options.json")
+        monkeypatch.setattr(wine_app, "DB_PATH", "/nonexistent/wine.db")
+        defaults = set(wine_app.load_options())
+        assert defaults <= self._config_block("options")
+        assert defaults <= self._config_block("schema")
