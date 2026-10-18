@@ -1092,10 +1092,12 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
   #settingsModal .modal { max-width: 900px; }
 }
 .settings-tabs {
-  display: flex; gap: .25rem; overflow-x: auto;
+  display: flex; gap: .25rem; overflow-x: auto; overflow-y: hidden;
   padding: 0 1.25rem; border-bottom: 1px solid var(--border);
   background: var(--surface); flex-shrink: 0;
+  scrollbar-width: none;
 }
+.settings-tabs::-webkit-scrollbar { display: none; }
 .settings-tab {
   display: flex; align-items: center; gap: .4rem;
   background: none; border: none; cursor: pointer;
@@ -1146,6 +1148,12 @@ html.light .ai-status.ok { color: var(--text); }
   .settings-row--top > .settings-row-label { padding-top: 0; }
   .settings-row-label:empty { display: none; }
   .ai-actions .ai-action-btn { flex: 1 1 0; }
+  #settingsModal.modal-overlay { padding: 0; }
+  #settingsModal .modal {
+    max-width: none; width: 100%;
+    height: 100vh; height: 100dvh; max-height: none;
+    margin-top: 0; border-radius: 0; border: none;
+  }
 }
 .settings-footer {
   display: flex; justify-content: space-between; align-items: center;
