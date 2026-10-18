@@ -348,9 +348,9 @@ function renderTableView() {
     if (d.drink_until) {
       var yr = new Date().getFullYear();
       var until = parseInt(d.drink_until);
-      if (until < yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:#e74c3c;font-size:.75rem" title="Past drink window"></i>';
-      else if (until === yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:#e67e22;font-size:.75rem" title="Last year to drink"></i>';
-      else drinkIcon = ' <i class="mdi mdi-check-circle" style="color:#27ae60;font-size:.75rem" title="In drink window"></i>';
+      if (until < yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:var(--danger);font-size:.75rem" title="Past drink window"></i>';
+      else if (until === yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:var(--warning);font-size:.75rem" title="Last year to drink"></i>';
+      else drinkIcon = ' <i class="mdi mdi-check-circle" style="color:var(--success);font-size:.75rem" title="In drink window"></i>';
     }
     tbody += '<tr class="wine-table-row' + (parseInt(d.quantity) === 0 ? ' empty' : '') + '" data-card-id="' + d.id + '" onclick="viewWineById(\'' + d.id + '\')"' + hidden + '>'
       + '<td class="wine-table-type col-type">' + typeDot + '</td>'

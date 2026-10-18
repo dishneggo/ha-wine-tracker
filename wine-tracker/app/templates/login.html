@@ -60,13 +60,12 @@
     box-sizing: border-box;
   }
   .login-form input:focus {
-    outline: none;
     border-color: var(--accent);
   }
   .login-error {
-    background: rgba(231, 76, 60, .12);
-    color: #e74c3c;
-    border: 1px solid rgba(231, 76, 60, .25);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: var(--danger);
+    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
     border-radius: 8px;
     padding: .6rem .75rem;
     font-size: .85rem;
