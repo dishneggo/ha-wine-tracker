@@ -1084,7 +1084,8 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 .qty-undo-toast button:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 /* ── Settings Modal ───────────────────────────────────────────────────────── */
-#settingsModal .modal { max-width: 480px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+#settingsModal.modal-overlay { align-items: flex-start; }
+#settingsModal .modal { max-width: 480px; max-height: 80vh; margin-top: 10vh; display: flex; flex-direction: column; overflow: hidden; }
 #settingsModal .modal-body { overflow-y: auto; gap: 1.8rem; flex: 1; padding-bottom: 2.5rem; }
 #settingsModal .theme-dropdown-list { position: fixed; z-index: 10000; }
 @media (min-width: 700px) {
