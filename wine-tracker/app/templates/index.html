@@ -241,7 +241,7 @@
 <!-- ═══════════════ QTY UNDO TOAST ═══════════════ -->
 <div class="qty-undo-toast" id="qtyUndoToast" style="display:none">
   <span id="qtyUndoMsg"></span>
-  <button type="button" onclick="undoQtyChange()">{{ t.btn_undo }}</button>
+  <button type="button" onclick="undoToastClick()">{{ t.btn_undo }}</button>
 </div>
 {% endif %}
 
@@ -1298,6 +1298,20 @@ function changeQty(el, delta) {
   changeQtyCard(el.closest('.card'), delta);
 }
 
+function applyQtyUI(card, qty) {
+  card.dataset.quantity = qty;
+  card.querySelector('.qty-display').textContent = qty;
+  card.querySelector('.qty-badge').textContent = qty + ' ' + (qty === 1 ? T.bottle_abbr : T.bottles_abbr);
+  card.querySelector('.qty-badge').classList.toggle('has', qty > 0);
+  card.classList.toggle('empty', qty == 0);
+  var tableRow = document.querySelector('#wineTable tr[data-card-id="' + card.dataset.id + '"]');
+  if (tableRow) {
+    tableRow.querySelector('.col-qty').textContent = qty;
+    tableRow.classList.toggle('empty', qty == 0);
+  }
+  applyFilters();
+}
+
 function changeQtyCard(card, delta, isUndo) {
   var id = card.dataset.id;
   var d = card.dataset;
@@ -1323,58 +1337,68 @@ function changeQtyCard(card, delta, isUndo) {
   if (isUndo) fd.append('qty_undo', '1');
 
   // Optimistic UI update
-  card.dataset.quantity = newQty;
-  card.querySelector('.qty-display').textContent = newQty;
-  card.querySelector('.qty-badge').textContent = newQty + ' ' + (newQty === 1 ? T.bottle_abbr : T.bottles_abbr);
-  card.querySelector('.qty-badge').classList.toggle('has', newQty > 0);
-  card.classList.toggle('empty', newQty == 0);
-  var tableRow = document.querySelector('#wineTable tr[data-card-id="' + id + '"]');
-  if (tableRow) {
-    tableRow.querySelector('.col-qty').textContent = newQty;
-    tableRow.classList.toggle('empty', newQty == 0);
-  }
-  applyFilters();
+  applyQtyUI(card, newQty);
 
   fetch(INGRESS + '/edit/' + id, {
     method: 'POST', body: fd,
     headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  });
+  })
+    .then(function(r) { if (!r.ok) throw new Error('save failed'); })
+    .catch(function() {
+      applyQtyUI(card, oldQty);
+      showErrorToast(T.toast_save_failed);
+    });
 
-  if (isUndo) hideQtyUndoToast();
-  else if (newQty !== oldQty) showQtyUndoToast(id, newQty - oldQty);
+  if (isUndo) hideUndoToast();
+  else if (newQty !== oldQty) {
+    var delta = newQty - oldQty;
+    showUndoToast(delta < 0 ? T.toast_bottle_removed : T.toast_bottle_added, function() {
+      var c = document.querySelector('.card[data-id="' + id + '"]');
+      if (c) changeQtyCard(c, -delta, true);
+    });
+  }
 }
 
-// ── Qty undo toast ───────────────────────────────────────────────────────────
+// ── Undo / error toast ───────────────────────────────────────────────────────
 
-var qtyUndoState = null;
-var qtyUndoTimer = null;
+var undoToastAction = null;
+var undoToastTimer = null;
 
-function showQtyUndoToast(cardId, delta) {
+function _showToast(message, isError, onUndo, timeoutMs) {
   var toast = document.getElementById('qtyUndoToast');
   if (!toast) return;
-  qtyUndoState = { cardId: cardId, delta: delta };
-  document.getElementById('qtyUndoMsg').textContent =
-    delta < 0 ? T.toast_bottle_removed : T.toast_bottle_added;
+  undoToastAction = onUndo || null;
+  document.getElementById('qtyUndoMsg').textContent = message;
+  toast.classList.toggle('error', !!isError);
+  toast.querySelector('button').style.display = onUndo ? '' : 'none';
   toast.style.display = 'flex';
   toast.style.opacity = '1';
-  clearTimeout(qtyUndoTimer);
-  qtyUndoTimer = setTimeout(hideQtyUndoToast, 5000);
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(hideUndoToast, timeoutMs);
 }
 
-function hideQtyUndoToast() {
+function showUndoToast(message, onUndo) {
+  _showToast(message, false, onUndo, 6000);
+}
+
+function showErrorToast(message) {
+  _showToast(message, true, null, 4000);
+}
+
+function hideUndoToast() {
   var toast = document.getElementById('qtyUndoToast');
   if (!toast) return;
-  clearTimeout(qtyUndoTimer);
+  clearTimeout(undoToastTimer);
   toast.style.opacity = '0';
   setTimeout(function() { toast.style.display = 'none'; }, 400);
-  qtyUndoState = null;
+  undoToastAction = null;
 }
 
-function undoQtyChange() {
-  if (!qtyUndoState) return;
-  var card = document.querySelector('.card[data-id="' + qtyUndoState.cardId + '"]');
-  if (card) changeQtyCard(card, -qtyUndoState.delta, true);
-  else hideQtyUndoToast();
+function undoToastClick() {
+  if (!undoToastAction) return;
+  var action = undoToastAction;
+  hideUndoToast();
+  action();
 }
 
 // ── Qty popover (opened from the qty badge) ──────────────────────────────────
@@ -1477,7 +1501,7 @@ document.getElementById('deleteForm').addEventListener('submit', function(e) {
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
-    if (!data.ok) return;
+    if (!data.ok) throw new Error('delete failed');
     var card = document.querySelector('.card[data-id="' + id + '"]');
     if (card) card.remove();
     if (currentViewMode === 'table') renderTableView();
@@ -1490,6 +1514,24 @@ document.getElementById('deleteForm').addEventListener('submit', function(e) {
     if (!grid.querySelector('.card')) {
       grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div><img src="' + INGRESS + '/static/logo.png" alt="Wine Tracker" class="empty-state-logo"></div><p>' + T.empty_no_wines + '<br>' + T.empty_add_first + '</p></div>';
     }
+    if (data.restorable) {
+      showUndoToast(T.toast_wine_deleted, function() {
+        fetch(INGRESS + '/api/wine/' + id + '/restore', {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (!res.ok) throw new Error('restore failed');
+            window._onWineSaved(res);
+          })
+          .catch(function() { showErrorToast(T.toast_save_failed); });
+      });
+    }
+  })
+  .catch(function() {
+    closeModal('deleteModal');
+    showErrorToast(T.toast_save_failed);
   });
 });
 
