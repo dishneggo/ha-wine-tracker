@@ -1,8 +1,9 @@
 # Changelog
 
-## 1.11.0-dev.3
+## 1.11.0-dev.4
 
-- Fix cramped mobile layout in the settings modal
+- Turn AI model fields into real dropdowns in house style
+- Add live model suggestions to the AI settings model fields
 
 
 ## 1.11.0

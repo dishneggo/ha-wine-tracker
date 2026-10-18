@@ -197,7 +197,111 @@ function aiSettingsProviderChanged() {
   var keyInput = document.getElementById('aiApiKeyInput');
   keyInput.value = '';
   keyInput.placeholder = _aiSettings.keys[p + '_api_key'] ? T.ai_key_stored : T.ai_key_placeholder;
+  _aiLoadModelList(p);
 }
+
+var _aiModelCache = {};
+var _modelDdTarget = null;
+
+function _aiSetModelButtons(hasModels) {
+  ['aiModelDdBtn', 'aiChatModelDdBtn'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) b.style.display = hasModels ? '' : 'none';
+  });
+  ['aiModelInput', 'aiChatModelInput'].forEach(function(id) {
+    var input = document.getElementById(id);
+    if (input) input.readOnly = hasModels;
+  });
+}
+
+function _aiLoadModelList(provider) {
+  closeModelDd();
+  if (_aiModelCache[provider]) {
+    _aiSetModelButtons(_aiModelCache[provider].length > 0);
+    return;
+  }
+  _aiSetModelButtons(false);
+  fetch(_apiBase() + '/api/ai-settings/models?provider=' + encodeURIComponent(provider))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok || !data.models) return;
+      _aiModelCache[provider] = data.models;
+      if (document.getElementById('aiProviderSelect').value === provider) {
+        _aiSetModelButtons(data.models.length > 0);
+      }
+    })
+    .catch(function() {});
+}
+
+function toggleModelDd(inputId, ev) {
+  if (ev) ev.stopPropagation();
+  var dd = document.getElementById('aiModelDd');
+  if (!dd) return;
+  if (_modelDdTarget === inputId && dd.style.display === 'block') { closeModelDd(); return; }
+  var provider = document.getElementById('aiProviderSelect').value;
+  var models = _aiModelCache[provider] || [];
+  if (!models.length) { closeModelDd(); return; }
+  _modelDdTarget = inputId;
+  var input = document.getElementById(inputId);
+  var current = input.value.trim();
+  var html = '';
+  if (models.length > 20) {
+    html += '<input type="text" class="model-dd-filter" oninput="filterModelDd(this)" onclick="event.stopPropagation()">';
+  }
+  if (inputId === 'aiChatModelInput') {
+    html += '<div class="model-dd-item' + (current === '' ? ' active' : '') + '" data-model="">&mdash;</div>';
+  }
+  html += models.map(function(m) {
+    var esc = m.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    return '<div class="model-dd-item' + (m === current ? ' active' : '') + '" data-model="' + esc + '">' + esc + '</div>';
+  }).join('');
+  dd.innerHTML = html;
+  var r = input.getBoundingClientRect();
+  dd.style.display = 'block';
+  dd.style.left = r.left + 'px';
+  dd.style.width = r.width + 'px';
+  var ddHeight = Math.min(260, dd.scrollHeight);
+  var top = r.bottom + 4;
+  if (top + ddHeight > window.innerHeight - 8) top = Math.max(8, r.top - ddHeight - 4);
+  dd.style.top = top + 'px';
+  var filter = dd.querySelector('.model-dd-filter');
+  if (filter) filter.focus();
+  var active = dd.querySelector('.model-dd-item.active');
+  if (active) active.scrollIntoView({ block: 'center' });
+}
+
+function filterModelDd(filterInput) {
+  var q = filterInput.value.trim().toLowerCase();
+  document.querySelectorAll('#aiModelDd .model-dd-item').forEach(function(item) {
+    item.style.display = !q || item.dataset.model.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+  });
+}
+
+function closeModelDd() {
+  var dd = document.getElementById('aiModelDd');
+  if (dd) dd.style.display = 'none';
+  _modelDdTarget = null;
+}
+
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('aiModelDd');
+  if (!dd || dd.style.display !== 'block') return;
+  var item = e.target.closest('.model-dd-item');
+  if (item && dd.contains(item)) {
+    var input = document.getElementById(_modelDdTarget);
+    if (input) input.value = item.dataset.model;
+    closeModelDd();
+    return;
+  }
+  if (!dd.contains(e.target)) closeModelDd();
+});
+
+window.addEventListener('scroll', function(e) {
+  var dd = document.getElementById('aiModelDd');
+  if (!dd || dd.style.display !== 'block') return;
+  if (e.target === dd) return;
+  closeModelDd();
+}, true);
 
 function aiSettingsSave(cb) {
   var p = document.getElementById('aiProviderSelect').value;
@@ -221,6 +325,7 @@ function aiSettingsSave(cb) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.ok) { _aiStatus(T.ai_save_failed, 'error'); _aiBusy(false); return; }
+      if (payload[p + '_api_key']) delete _aiModelCache[p];
       document.getElementById('aiApiKeyInput').value = '';
       _aiStatus(T.ai_saved, 'ok');
       if (typeof cb === 'function') { cb(); return; }
@@ -426,4 +531,10 @@ document.addEventListener('DOMContentLoaded', function() {
   updateThemeDropdown();
   initSettingsTabs();
   if (document.getElementById('aiProviderSelect')) aiSettingsLoad();
+  ['aiModelInput', 'aiChatModelInput'].forEach(function(id) {
+    var input = document.getElementById(id);
+    if (input) input.addEventListener('click', function(e) {
+      if (input.readOnly) toggleModelDd(id, e);
+    });
+  });
 });
