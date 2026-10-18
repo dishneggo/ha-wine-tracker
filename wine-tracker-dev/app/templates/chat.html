@@ -136,31 +136,6 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
-// Close modal on overlay click (skip wineModal - handled by _wine_edit_modal.html)
-document.querySelectorAll('.modal-overlay').forEach(function(el) {
-  el.addEventListener('click', function(e) {
-    if (e.target !== el) return;
-    if (el.id === 'wineModal') return;
-    closeModal(el.id);
-  });
-});
-
-// ESC closes modals, lightbox & nav menu (wineModal: guard if dirty)
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    closeLightbox();
-    var navMenu = document.getElementById('navMenu');
-    if (navMenu) navMenu.classList.remove('open');
-    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
-      if (el.id === 'wineModal') {
-        tryCloseWineModal();
-      } else {
-        el.classList.remove('open');
-      }
-    });
-  }
-});
-
 // ── View Modal functions ──────────────────────────────────
 function escapeHtml(s) {
   if (!s) return '';
@@ -207,7 +182,7 @@ function openViewModal(id, wine) {
     ribbonHtml = '<span class="ribbon ribbon-' + escapeHtml(w.type.toLowerCase().replace(/[éö]/g, function(c){return c==='é'?'e':'oe';})) + '">' + escapeHtml(typeLabel) + '</span>';
   }
   if (w.image) {
-    html += '<div class="view-photo-panel" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
+    html += '<div class="view-photo-panel" tabindex="0" role="button" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
           + ribbonHtml
           + '<img src="' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '" alt="' + escapeHtml(w.name) + '">'
           + '</div>';
@@ -386,7 +361,7 @@ function loadChatSidebarList() {
           dateStr = d.toLocaleDateString('{{ lang }}', {day: '2-digit', month: '2-digit', year: 'numeric'});
         }
         var msgLabel = s.message_count === 1 ? (T.chat_message || 'message') : (T.chat_messages || 'messages');
-        html += '<div class="chat-session-item' + (isActive ? ' active' : '') + '" onclick="loadChatSession(' + s.id + ')">';
+        html += '<div class="chat-session-item' + (isActive ? ' active' : '') + '" tabindex="0" role="button" onclick="loadChatSession(' + s.id + ')">';
         html += '<div class="chat-session-item-info">';
         html += '<div class="chat-session-item-title">' + escapeHtmlChat(title) + '</div>';
         html += '<div class="chat-session-item-date">' + escapeHtmlChat(dateStr) + ' · ' + s.message_count + ' ' + msgLabel + '</div>';
@@ -434,7 +409,12 @@ function startNewChatSession() {
 }
 
 function deleteChatSession(sessionId) {
-  if (!confirm(T.chat_delete_confirm || 'Really delete this chat?')) return;
+  appConfirm(T.chat_delete_confirm || 'Really delete this chat?').then(function(ok) {
+    if (ok) doDeleteChatSession(sessionId);
+  });
+}
+
+function doDeleteChatSession(sessionId) {
   fetch(INGRESS + '/api/chat/sessions/' + sessionId, {method: 'DELETE'})
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -607,11 +587,22 @@ document.querySelector('.chat-fullpage').addEventListener('click', function(e) {
   // keyboard). iOS keyboard alone ≈ 291px, + suggestion bar ≈ 335px.
   var KB_INSET_PX = 320;
 
+  // The chat page is fully fixed-position, so any window scroll is wrong.
+  // WebKit still scrolls the (i)frame to reveal the focused input on top of
+  // our --kb-inset lift, which shoves the whole page upwards - clamp it back.
+  function resetWindowScroll() {
+    if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+  }
+  window.addEventListener('scroll', resetWindowScroll, { passive: true });
+
   input.addEventListener('focus', function() {
     document.documentElement.style.setProperty('--kb-inset', KB_INSET_PX + 'px');
+    setTimeout(resetWindowScroll, 100);
+    setTimeout(resetWindowScroll, 350);
   });
   input.addEventListener('blur', function() {
     document.documentElement.style.setProperty('--kb-inset', '0px');
+    setTimeout(resetWindowScroll, 100);
   });
 })();
 </script>

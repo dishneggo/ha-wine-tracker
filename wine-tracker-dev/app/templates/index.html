@@ -110,7 +110,7 @@
        data-producer="{{ w['producer'] or '' }}"
        data-alcohol_pct="{{ w['alcohol_pct'] or '' }}"
        data-vivino_id="{{ w['vivino_id'] or '' }}"
-       data-bottle_format="{{ w['bottle_format'] or '0.75' }}">
+       data-bottle_format="{{ '%g'|format(w['bottle_format'] or 0.75) }}">
 
     {% if w['quantity'] == 0 %}
       <div class="ribbon ribbon-empty">{{ t.ribbon_empty }}</div>
@@ -127,11 +127,11 @@
     </div>
 
     <!-- Quantity badge -->
-    <div class="qty-badge {% if w['quantity'] > 0 %}has{% endif %}"{% if not auth_readonly %} onclick="openQtyPopover(this, event)"{% endif %}>
+    <div class="qty-badge {% if w['quantity'] > 0 %}has{% endif %}"{% if not auth_readonly %} onclick="openQtyPopover(this, event)" tabindex="0" role="button"{% endif %}>
       {{ w['quantity'] }} {{ t.bottle_abbr if w['quantity'] == 1 else t.bottles_abbr }}
     </div>
 
-    <div class="card-body" onclick="viewFromCard(this)">
+    <div class="card-body" onclick="viewFromCard(this)" tabindex="0" role="button">
       <div class="card-name" title="{{ w['name'] }}">{{ w['name'] }}</div>
       <div class="card-meta">
         <span>{{ w['year'] or '' }}</span>
@@ -241,7 +241,7 @@
 <!-- ═══════════════ QTY UNDO TOAST ═══════════════ -->
 <div class="qty-undo-toast" id="qtyUndoToast" style="display:none">
   <span id="qtyUndoMsg"></span>
-  <button type="button" onclick="undoQtyChange()">{{ t.btn_undo }}</button>
+  <button type="button" onclick="undoToastClick()">{{ t.btn_undo }}</button>
 </div>
 {% endif %}
 
@@ -281,12 +281,6 @@ document.addEventListener('click', function(e) {
   var menu = document.getElementById('navMenu');
   if (menu && menu.classList.contains('open') && !e.target.closest('.nav-hamburger') && !e.target.closest('.nav-menu')) {
     menu.classList.remove('open');
-  }
-});
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    var menu = document.getElementById('navMenu');
-    if (menu) menu.classList.remove('open');
   }
 });
 </script>
@@ -348,18 +342,18 @@ function renderTableView() {
     if (d.drink_until) {
       var yr = new Date().getFullYear();
       var until = parseInt(d.drink_until);
-      if (until < yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:#e74c3c;font-size:.75rem" title="Past drink window"></i>';
-      else if (until === yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:#e67e22;font-size:.75rem" title="Last year to drink"></i>';
-      else drinkIcon = ' <i class="mdi mdi-check-circle" style="color:#27ae60;font-size:.75rem" title="In drink window"></i>';
+      if (until < yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:var(--danger);font-size:.75rem" title="Past drink window"></i>';
+      else if (until === yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:var(--warning);font-size:.75rem" title="Last year to drink"></i>';
+      else drinkIcon = ' <i class="mdi mdi-check-circle" style="color:var(--success);font-size:.75rem" title="In drink window"></i>';
     }
-    tbody += '<tr class="wine-table-row' + (parseInt(d.quantity) === 0 ? ' empty' : '') + '" data-card-id="' + d.id + '" onclick="viewWineById(\'' + d.id + '\')"' + hidden + '>'
+    tbody += '<tr class="wine-table-row' + (parseInt(d.quantity) === 0 ? ' empty' : '') + '" data-card-id="' + d.id + '" onclick="viewWineById(\'' + d.id + '\')" tabindex="0"' + hidden + '>'
       + '<td class="wine-table-type col-type">' + typeDot + '</td>'
       + '<td class="wine-table-name col-name">' + escapeHtml(d.name) + '</td>'
       + '<td class="col-year">' + escapeHtml(d.year || '') + drinkIcon + '</td>'
       + '<td class="col-region">' + escapeHtml(d.region || '') + '</td>'
       + '<td class="col-grape">' + escapeHtml(d.grape || '') + '</td>'
       + '<td class="wine-table-right col-price">' + escapeHtml(priceStr) + '</td>'
-      + '<td class="wine-table-right col-qty"' + (AUTH_READONLY ? '' : ' onclick="openQtyPopover(this, event)"') + '>' + (d.quantity || '0') + '</td>'
+      + '<td class="wine-table-right col-qty"' + (AUTH_READONLY ? '' : ' onclick="openQtyPopover(this, event)" tabindex="0"') + '>' + (d.quantity || '0') + '</td>'
       + '</tr>';
   });
   tbody += '</tbody>';
@@ -594,7 +588,10 @@ function updateTabCounts() {
     var d = card.dataset;
     var searchOk = !query ||
       (d.name || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.producer || '').toLowerCase().indexOf(query) !== -1 ||
       (d.region || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.year || '').indexOf(query) !== -1 ||
+      (d.grape || '').toLowerCase().indexOf(query) !== -1 ||
       (d.notes || '').toLowerCase().indexOf(query) !== -1;
     var typeOk = !activeType || d.type === activeType;
     var emptyOk = showEmpty || parseInt(d.quantity) > 0;
@@ -750,29 +747,6 @@ function setShowEmptyDefault(enabled) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
-
-// Close on overlay click (skip wineModal - handled by _wine_edit_modal.html)
-document.querySelectorAll('.modal-overlay').forEach(function(el) {
-  el.addEventListener('click', function(e) {
-    if (e.target !== el) return;
-    if (el.id === 'wineModal') return; // handled by include
-    el.classList.remove('open');
-  });
-});
-
-// ESC closes modals & lightbox (wineModal: guard if dirty)
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    closeLightbox();
-    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
-      if (el.id === 'wineModal') {
-        tryCloseWineModal();
-      } else {
-        el.classList.remove('open');
-      }
-    });
-  }
-});
 
 // Helper: get wine data from closest .card element
 function getCardData(el) {
@@ -985,7 +959,7 @@ function openViewModal(id, wine) {
     ribbonHtml = '<span class="ribbon ribbon-' + escapeHtml(w.type.toLowerCase().replace(/[éö]/g, function(c){return c==='é'?'e':'oe';})) + '">' + escapeHtml(typeLabel) + '</span>';
   }
   if (w.image) {
-    html += '<div class="view-photo-panel" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
+    html += '<div class="view-photo-panel" tabindex="0" role="button" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
           + ribbonHtml
           + '<img src="' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '" alt="' + escapeHtml(w.name) + '">'
           + '</div>';
@@ -1208,8 +1182,8 @@ function renderCard(w) {
 
   return ribbonHtml +
     '<div class="card-img' + (w.image ? ' shimmer' : '') + '" onclick="cardImgClick(this)">' + imgHtml + '</div>' +
-    '<div class="qty-badge ' + (w.quantity > 0 ? 'has' : '') + '"' + (AUTH_READONLY ? '' : ' onclick="openQtyPopover(this, event)"') + '>' + w.quantity + ' ' + (w.quantity === 1 ? T.bottle_abbr : T.bottles_abbr) + '</div>' +
-    '<div class="card-body" onclick="viewFromCard(this)">' +
+    '<div class="qty-badge ' + (w.quantity > 0 ? 'has' : '') + '"' + (AUTH_READONLY ? '' : ' onclick="openQtyPopover(this, event)" tabindex="0" role="button"') + '>' + w.quantity + ' ' + (w.quantity === 1 ? T.bottle_abbr : T.bottles_abbr) + '</div>' +
+    '<div class="card-body" onclick="viewFromCard(this)" tabindex="0" role="button">' +
       '<div class="card-name" title="' + escapeHtml(w.name) + '">' + escapeHtml(w.name) + '</div>' +
       '<div class="card-meta">' + metaParts + '</div>' +
       stars +
@@ -1298,6 +1272,20 @@ function changeQty(el, delta) {
   changeQtyCard(el.closest('.card'), delta);
 }
 
+function applyQtyUI(card, qty) {
+  card.dataset.quantity = qty;
+  card.querySelector('.qty-display').textContent = qty;
+  card.querySelector('.qty-badge').textContent = qty + ' ' + (qty === 1 ? T.bottle_abbr : T.bottles_abbr);
+  card.querySelector('.qty-badge').classList.toggle('has', qty > 0);
+  card.classList.toggle('empty', qty == 0);
+  var tableRow = document.querySelector('#wineTable tr[data-card-id="' + card.dataset.id + '"]');
+  if (tableRow) {
+    tableRow.querySelector('.col-qty').textContent = qty;
+    tableRow.classList.toggle('empty', qty == 0);
+  }
+  applyFilters();
+}
+
 function changeQtyCard(card, delta, isUndo) {
   var id = card.dataset.id;
   var d = card.dataset;
@@ -1323,58 +1311,68 @@ function changeQtyCard(card, delta, isUndo) {
   if (isUndo) fd.append('qty_undo', '1');
 
   // Optimistic UI update
-  card.dataset.quantity = newQty;
-  card.querySelector('.qty-display').textContent = newQty;
-  card.querySelector('.qty-badge').textContent = newQty + ' ' + (newQty === 1 ? T.bottle_abbr : T.bottles_abbr);
-  card.querySelector('.qty-badge').classList.toggle('has', newQty > 0);
-  card.classList.toggle('empty', newQty == 0);
-  var tableRow = document.querySelector('#wineTable tr[data-card-id="' + id + '"]');
-  if (tableRow) {
-    tableRow.querySelector('.col-qty').textContent = newQty;
-    tableRow.classList.toggle('empty', newQty == 0);
-  }
-  applyFilters();
+  applyQtyUI(card, newQty);
 
   fetch(INGRESS + '/edit/' + id, {
     method: 'POST', body: fd,
     headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  });
+  })
+    .then(function(r) { if (!r.ok) throw new Error('save failed'); })
+    .catch(function() {
+      applyQtyUI(card, oldQty);
+      showErrorToast(T.toast_save_failed);
+    });
 
-  if (isUndo) hideQtyUndoToast();
-  else if (newQty !== oldQty) showQtyUndoToast(id, newQty - oldQty);
+  if (isUndo) hideUndoToast();
+  else if (newQty !== oldQty) {
+    var delta = newQty - oldQty;
+    showUndoToast(delta < 0 ? T.toast_bottle_removed : T.toast_bottle_added, function() {
+      var c = document.querySelector('.card[data-id="' + id + '"]');
+      if (c) changeQtyCard(c, -delta, true);
+    });
+  }
 }
 
-// ── Qty undo toast ───────────────────────────────────────────────────────────
+// ── Undo / error toast ───────────────────────────────────────────────────────
 
-var qtyUndoState = null;
-var qtyUndoTimer = null;
+var undoToastAction = null;
+var undoToastTimer = null;
 
-function showQtyUndoToast(cardId, delta) {
+function _showToast(message, isError, onUndo, timeoutMs) {
   var toast = document.getElementById('qtyUndoToast');
   if (!toast) return;
-  qtyUndoState = { cardId: cardId, delta: delta };
-  document.getElementById('qtyUndoMsg').textContent =
-    delta < 0 ? T.toast_bottle_removed : T.toast_bottle_added;
+  undoToastAction = onUndo || null;
+  document.getElementById('qtyUndoMsg').textContent = message;
+  toast.classList.toggle('error', !!isError);
+  toast.querySelector('button').style.display = onUndo ? '' : 'none';
   toast.style.display = 'flex';
   toast.style.opacity = '1';
-  clearTimeout(qtyUndoTimer);
-  qtyUndoTimer = setTimeout(hideQtyUndoToast, 5000);
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(hideUndoToast, timeoutMs);
 }
 
-function hideQtyUndoToast() {
+function showUndoToast(message, onUndo) {
+  _showToast(message, false, onUndo, 6000);
+}
+
+function showErrorToast(message) {
+  _showToast(message, true, null, 4000);
+}
+
+function hideUndoToast() {
   var toast = document.getElementById('qtyUndoToast');
   if (!toast) return;
-  clearTimeout(qtyUndoTimer);
+  clearTimeout(undoToastTimer);
   toast.style.opacity = '0';
   setTimeout(function() { toast.style.display = 'none'; }, 400);
-  qtyUndoState = null;
+  undoToastAction = null;
 }
 
-function undoQtyChange() {
-  if (!qtyUndoState) return;
-  var card = document.querySelector('.card[data-id="' + qtyUndoState.cardId + '"]');
-  if (card) changeQtyCard(card, -qtyUndoState.delta, true);
-  else hideQtyUndoToast();
+function undoToastClick() {
+  if (!undoToastAction) return;
+  var action = undoToastAction;
+  hideUndoToast();
+  action();
 }
 
 // ── Qty popover (opened from the qty badge) ──────────────────────────────────
@@ -1477,7 +1475,7 @@ document.getElementById('deleteForm').addEventListener('submit', function(e) {
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
-    if (!data.ok) return;
+    if (!data.ok) throw new Error('delete failed');
     var card = document.querySelector('.card[data-id="' + id + '"]');
     if (card) card.remove();
     if (currentViewMode === 'table') renderTableView();
@@ -1490,10 +1488,28 @@ document.getElementById('deleteForm').addEventListener('submit', function(e) {
     if (!grid.querySelector('.card')) {
       grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div><img src="' + INGRESS + '/static/logo.png" alt="Wine Tracker" class="empty-state-logo"></div><p>' + T.empty_no_wines + '<br>' + T.empty_add_first + '</p></div>';
     }
+    if (data.restorable) {
+      showUndoToast(T.toast_wine_deleted, function() {
+        fetch(INGRESS + '/api/wine/' + id + '/restore', {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (!res.ok) throw new Error('restore failed');
+            window._onWineSaved(res);
+          })
+          .catch(function() { showErrorToast(T.toast_save_failed); });
+      });
+    }
+  })
+  .catch(function() {
+    closeModal('deleteModal');
+    showErrorToast(T.toast_save_failed);
   });
 });
 
-// Highlight newly added wine & scroll to it (for non-JS fallback / initial load)
+// Highlight newly added wine & scroll to it
 (function() {
   const params = new URLSearchParams(window.location.search);
   const newId = params.get('new');

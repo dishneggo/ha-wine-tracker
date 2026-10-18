@@ -85,11 +85,11 @@ class TestIndex:
         Regression test for a bug where {{ t.filter_all }}, {{ t.filter_dw_in }}
         and {{ t.filter_dw_last }} had lost their `t.` prefix, causing the
         labels to render as empty strings and leaving only the counts visible
-        in the filter dropdown (see commit 051b5cf).
+        in the filter dropdown.
         """
         resp = client.get("/")
         html = resp.data.decode()
-        # Default language is German; the three previously-broken labels:
+        # Default language is German; the three labels:
         assert "Im Trinkfenster" in html
         assert "Letztes Jahr" in html
         # And the one that was always correct (sanity check):
@@ -517,8 +517,9 @@ class TestDeleteWine:
         data = json.loads(resp.data)
         assert data["ok"] is True  # Still returns ok (idempotent)
 
-    def test_delete_removes_orphan_image(self, client, upload_dir):
-        """Deleting a wine should remove its image if no other wine uses it."""
+    def test_delete_keeps_image_for_undo(self, client, upload_dir):
+        """Deleting a wine keeps its image so the deletion can be undone;
+        orphaned files are reclaimed by cleanup_orphan_uploads() on start."""
         fake_image = (io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100), "label.png")
         resp = client.post(
             "/add",
@@ -531,7 +532,7 @@ class TestDeleteWine:
         assert os.path.isfile(img_path)
 
         client.post(f"/delete/{wine['id']}", headers=AJAX)
-        assert not os.path.isfile(img_path)
+        assert os.path.isfile(img_path)
 
 
 # ── GET /stats ────────────────────────────────────────────────────────────────
@@ -1618,3 +1619,47 @@ class TestAiSettingsAuth:
         resp = client.post("/api/ai-settings", json={"ai_provider": "openai"},
                            headers={"X-Requested-With": "XMLHttpRequest"})
         assert resp.get_json()["ok"] is True
+
+
+# ── Delete undo ───────────────────────────────────────────────────────────────
+
+class TestDeleteUndo:
+    """Deleting a wine can be undone via /api/wine/<id>/restore."""
+
+    XHR = {"X-Requested-With": "XMLHttpRequest"}
+
+    def test_delete_is_restorable(self, client, db, sample_wine):
+        """Delete keeps the data restorable and restore brings the wine back."""
+        wine_id = sample_wine["wine"]["id"]
+        resp = client.post(f"/delete/{wine_id}", headers=self.XHR)
+        assert resp.get_json()["restorable"] is True
+        assert db.execute("SELECT 1 FROM wines WHERE id=?", (wine_id,)).fetchone() is None
+
+        resp = client.post(f"/api/wine/{wine_id}/restore", headers=self.XHR)
+        data = resp.get_json()
+        assert data["ok"] is True
+        assert data["wine"]["id"] == wine_id
+        assert data["wine"]["name"] == sample_wine["wine"]["name"]
+        assert data["wine"]["producer"] == sample_wine["wine"]["producer"]
+
+    def test_restore_removes_removed_timeline_entry(self, client, db, sample_wine):
+        """Undoing a delete also removes the logged 'removed' entry."""
+        wine_id = sample_wine["wine"]["id"]
+        client.post(f"/delete/{wine_id}", headers=self.XHR)
+        client.post(f"/api/wine/{wine_id}/restore", headers=self.XHR)
+        rows = db.execute(
+            "SELECT action FROM timeline WHERE wine_id=?", (wine_id,)
+        ).fetchall()
+        assert "removed" not in [r["action"] for r in rows]
+
+    def test_restore_unknown_wine_404(self, client):
+        resp = client.post("/api/wine/99999/restore", headers=self.XHR)
+        assert resp.status_code == 404
+
+    def test_restore_twice_404(self, client, sample_wine):
+        """A second restore of the same wine is rejected."""
+        wine_id = sample_wine["wine"]["id"]
+        client.post(f"/delete/{wine_id}", headers=self.XHR)
+        client.post(f"/api/wine/{wine_id}/restore", headers=self.XHR)
+        resp = client.post(f"/api/wine/{wine_id}/restore", headers=self.XHR)
+        assert resp.status_code == 404

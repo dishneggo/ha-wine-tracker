@@ -1,10 +1,19 @@
 # Changelog
 
-## 1.11.0-dev.5
+## 1.11.0-dev.6
 
-- Fix sticky hover state on advanced filter footer buttons on touch
-- Fix export download inside the HA companion app
-- Skip duplicate safe-area inset inside the HA ingress frame
+- Fix review findings in the close-behavior refactor
+- Fix WCAG AA contrast across themes (design gap 2)
+- Fix documentation drift and restructure README
+- Unify close behavior and replace native dialogs (design gap 15)
+- Add keyboard reachability and button states (design gaps 13/14)
+- Fix misleading and non-English code comments
+- Introduce semantic tokens, focus-visible ring and reduced motion
+- Fix purchased_at filter: text matching instead of date comparison
+- Add producer and alcohol fields to the advanced filter
+- Fix seven advanced filter bugs found in audit
+- Clamp window scroll on the mobile chat page
+- Add undo for wine deletion and error toasts for failed saves
 
 
 ## 1.11.0

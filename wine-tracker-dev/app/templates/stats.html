@@ -84,7 +84,7 @@
 </div>
 
 
-<!-- ═══════ HERKUNFT MAP ═══════ -->
+<!-- ═══════ ORIGIN MAP ═══════ -->
 {% if map_points %}
 <div class="map-card">
   <h2><i class="mdi mdi-earth"></i> {{ t.stat_wine_origin }}</h2>
@@ -435,12 +435,6 @@ document.addEventListener('click', function(e) {
     menu.classList.remove('open');
   }
 });
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    var menu = document.getElementById('navMenu');
-    if (menu) menu.classList.remove('open');
-  }
-});
 
 var WINE_DATA = {
   byType: {{ wines_by_type | tojson }},
@@ -463,29 +457,6 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
-
-// Close modal on overlay click (skip wineModal - handled by _wine_edit_modal.html)
-document.querySelectorAll('.modal-overlay').forEach(function(el) {
-  el.addEventListener('click', function(e) {
-    if (e.target !== el) return;
-    if (el.id === 'wineModal') return;
-    closeModal(el.id);
-  });
-});
-
-// ESC closes modals & lightbox (wineModal: guard if dirty)
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    closeLightbox();
-    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
-      if (el.id === 'wineModal') {
-        tryCloseWineModal();
-      } else {
-        el.classList.remove('open');
-      }
-    });
-  }
-});
 
 // ── View Modal (inline on stats) ──────────────────────────
 
@@ -534,7 +505,7 @@ function openViewModal(id, wine) {
     ribbonHtml = '<span class="ribbon ribbon-' + escapeHtml(w.type.toLowerCase().replace(/[éö]/g, function(c){return c==='é'?'e':'oe';})) + '">' + escapeHtml(typeLabel) + '</span>';
   }
   if (w.image) {
-    html += '<div class="view-photo-panel" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
+    html += '<div class="view-photo-panel" tabindex="0" role="button" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
           + ribbonHtml
           + '<img src="' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '" alt="' + escapeHtml(w.name) + '">'
           + '</div>';

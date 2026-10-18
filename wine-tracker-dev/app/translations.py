@@ -112,7 +112,9 @@ TRANSLATIONS = {
     "filter_field_quantity": "Menge",
     "filter_field_type": "Weintyp",
     "filter_field_bottle_format": "Flaschengrösse",
-    "filter_field_purchased_at": "Gekauft am",
+    "filter_field_purchased_at": "Gekauft bei",
+    "filter_field_producer": "Produzent",
+    "filter_field_alcohol": "Alkohol (% vol)",
     "filter_op_contains": "enthält",
     "filter_op_not_contains": "enthält nicht",
     "filter_op_equals": "ist genau",
@@ -206,6 +208,8 @@ TRANSLATIONS = {
     "toast_bottle_removed": "1 Flasche entnommen",
     "toast_bottle_added": "1 Flasche hinzugefügt",
     "btn_undo": "Rückgängig",
+    "toast_wine_deleted": "Wein gelöscht",
+    "toast_save_failed": "Speichern fehlgeschlagen",
     "btn_more": "Eine Flasche mehr",
     "btn_edit": "Bearbeiten",
     "btn_duplicate": "Duplizieren",
@@ -295,6 +299,7 @@ TRANSLATIONS = {
 
     # Discard
     "confirm_discard": "Änderungen verwerfen?",
+    "confirm_delete_photo": "Foto löschen?",
 
     # Lightbox
     "lightbox_alt": "Etikett",
@@ -489,6 +494,8 @@ TRANSLATIONS = {
     "filter_field_type": "Wine type",
     "filter_field_bottle_format": "Bottle size",
     "filter_field_purchased_at": "Purchased at",
+    "filter_field_producer": "Producer",
+    "filter_field_alcohol": "Alcohol (% vol)",
     "filter_op_contains": "contains",
     "filter_op_not_contains": "does not contain",
     "filter_op_equals": "equals",
@@ -579,6 +586,8 @@ TRANSLATIONS = {
     "toast_bottle_removed": "1 bottle removed",
     "toast_bottle_added": "1 bottle added",
     "btn_undo": "Undo",
+    "toast_wine_deleted": "Wine deleted",
+    "toast_save_failed": "Saving failed",
     "btn_more": "One bottle more",
     "btn_edit": "Edit",
     "btn_duplicate": "Duplicate",
@@ -664,6 +673,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Test link",
 
     "confirm_discard": "Discard changes?",
+    "confirm_delete_photo": "Delete photo?",
 
     "lightbox_alt": "Label",
 
@@ -855,7 +865,9 @@ TRANSLATIONS = {
     "filter_field_quantity": "Quantité",
     "filter_field_type": "Type de vin",
     "filter_field_bottle_format": "Format",
-    "filter_field_purchased_at": "Acheté le",
+    "filter_field_purchased_at": "Acheté chez",
+    "filter_field_producer": "Producteur",
+    "filter_field_alcohol": "Alcool (% vol)",
     "filter_op_contains": "contient",
     "filter_op_not_contains": "ne contient pas",
     "filter_op_equals": "est exactement",
@@ -946,6 +958,8 @@ TRANSLATIONS = {
     "toast_bottle_removed": "1 bouteille retirée",
     "toast_bottle_added": "1 bouteille ajoutée",
     "btn_undo": "Annuler",
+    "toast_wine_deleted": "Vin supprimé",
+    "toast_save_failed": "Échec de l'enregistrement",
     "btn_more": "Une bouteille de plus",
     "btn_edit": "Modifier",
     "btn_duplicate": "Dupliquer",
@@ -1031,6 +1045,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Tester le lien",
 
     "confirm_discard": "Annuler les modifications ?",
+    "confirm_delete_photo": "Supprimer la photo ?",
 
     "lightbox_alt": "Étiquette",
 
@@ -1222,7 +1237,9 @@ TRANSLATIONS = {
     "filter_field_quantity": "Quantità",
     "filter_field_type": "Tipo di vino",
     "filter_field_bottle_format": "Formato",
-    "filter_field_purchased_at": "Acquistato il",
+    "filter_field_purchased_at": "Acquistato presso",
+    "filter_field_producer": "Produttore",
+    "filter_field_alcohol": "Alcol (% vol)",
     "filter_op_contains": "contiene",
     "filter_op_not_contains": "non contiene",
     "filter_op_equals": "uguale a",
@@ -1313,6 +1330,8 @@ TRANSLATIONS = {
     "toast_bottle_removed": "1 bottiglia rimossa",
     "toast_bottle_added": "1 bottiglia aggiunta",
     "btn_undo": "Annulla",
+    "toast_wine_deleted": "Vino eliminato",
+    "toast_save_failed": "Salvataggio non riuscito",
     "btn_more": "Una bottiglia in più",
     "btn_edit": "Modifica",
     "btn_duplicate": "Duplica",
@@ -1398,6 +1417,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Testa il link",
 
     "confirm_discard": "Annullare le modifiche?",
+    "confirm_delete_photo": "Eliminare la foto?",
 
     "lightbox_alt": "Etichetta",
 
@@ -1589,7 +1609,9 @@ TRANSLATIONS = {
     "filter_field_quantity": "Cantidad",
     "filter_field_type": "Tipo de vino",
     "filter_field_bottle_format": "Formato",
-    "filter_field_purchased_at": "Comprado el",
+    "filter_field_purchased_at": "Comprado en",
+    "filter_field_producer": "Productor",
+    "filter_field_alcohol": "Alcohol (% vol)",
     "filter_op_contains": "contiene",
     "filter_op_not_contains": "no contiene",
     "filter_op_equals": "es exactamente",
@@ -1680,6 +1702,8 @@ TRANSLATIONS = {
     "toast_bottle_removed": "1 botella retirada",
     "toast_bottle_added": "1 botella añadida",
     "btn_undo": "Deshacer",
+    "toast_wine_deleted": "Vino eliminado",
+    "toast_save_failed": "Error al guardar",
     "btn_more": "Una botella más",
     "btn_edit": "Editar",
     "btn_duplicate": "Duplicar",
@@ -1765,6 +1789,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Probar enlace",
 
     "confirm_discard": "¿Descartar cambios?",
+    "confirm_delete_photo": "¿Eliminar la foto?",
 
     "lightbox_alt": "Etiqueta",
 
@@ -1957,6 +1982,8 @@ TRANSLATIONS = {
     "filter_field_type": "Tipo de vinho",
     "filter_field_bottle_format": "Formato",
     "filter_field_purchased_at": "Comprado em",
+    "filter_field_producer": "Produtor",
+    "filter_field_alcohol": "Álcool (% vol)",
     "filter_op_contains": "contém",
     "filter_op_not_contains": "não contém",
     "filter_op_equals": "é exatamente",
@@ -2047,6 +2074,8 @@ TRANSLATIONS = {
     "toast_bottle_removed": "1 garrafa removida",
     "toast_bottle_added": "1 garrafa adicionada",
     "btn_undo": "Desfazer",
+    "toast_wine_deleted": "Vinho eliminado",
+    "toast_save_failed": "Falha ao guardar",
     "btn_more": "Uma garrafa a mais",
     "btn_edit": "Editar",
     "btn_duplicate": "Duplicar",
@@ -2132,6 +2161,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Testar link",
 
     "confirm_discard": "Descartar alterações?",
+    "confirm_delete_photo": "Eliminar a foto?",
 
     "lightbox_alt": "Rótulo",
 
@@ -2323,7 +2353,9 @@ TRANSLATIONS = {
     "filter_field_quantity": "Hoeveelheid",
     "filter_field_type": "Wijnsoort",
     "filter_field_bottle_format": "Flesformaat",
-    "filter_field_purchased_at": "Gekocht op",
+    "filter_field_purchased_at": "Gekocht bij",
+    "filter_field_producer": "Producent",
+    "filter_field_alcohol": "Alcohol (% vol)",
     "filter_op_contains": "bevat",
     "filter_op_not_contains": "bevat niet",
     "filter_op_equals": "is gelijk aan",
@@ -2414,6 +2446,8 @@ TRANSLATIONS = {
     "toast_bottle_removed": "1 fles verwijderd",
     "toast_bottle_added": "1 fles toegevoegd",
     "btn_undo": "Ongedaan maken",
+    "toast_wine_deleted": "Wijn verwijderd",
+    "toast_save_failed": "Opslaan mislukt",
     "btn_more": "Eén fles meer",
     "btn_edit": "Bewerken",
     "btn_duplicate": "Dupliceren",
@@ -2499,6 +2533,7 @@ TRANSLATIONS = {
     "vivino_id_test": "Link testen",
 
     "confirm_discard": "Wijzigingen verwerpen?",
+    "confirm_delete_photo": "Foto verwijderen?",
 
     "lightbox_alt": "Etiket",
 

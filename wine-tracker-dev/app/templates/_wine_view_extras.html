@@ -31,9 +31,8 @@ function buildMaturityGraph(w) {
   // Unique ID for gradient (avoid collisions when multiple graphs on page)
   var uid = 'mg' + Math.random().toString(36).substr(2, 6);
 
-  // Build smooth gaussian-like bell curve with 4 key points:
+  // Build smooth gaussian-like bell curve through three key points:
   // start (baseline) → peak center (top) → end (baseline)
-  // Using a simple symmetric bell shape that works for any time span
   var x0 = yearToX(startYear);
   var xPeakStart = yearToX(md.peak[0]);
   var xPeakMid = yearToX((md.peak[0] + md.peak[1]) / 2);

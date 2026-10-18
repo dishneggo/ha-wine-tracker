@@ -23,20 +23,21 @@
   var FIELDS = [
     // Text
     { key: 'name',         group: 'text',   type: 'text',   label: 'filter_field_name' },
+    { key: 'producer',     group: 'text',   type: 'text',   label: 'filter_field_producer' },
     { key: 'region',       group: 'text',   type: 'text',   label: 'filter_field_region' },
     { key: 'grape',        group: 'text',   type: 'text',   label: 'filter_field_grape' },
     { key: 'location',     group: 'text',   type: 'text',   label: 'filter_field_location' },
+    { key: 'purchased_at', group: 'text',   type: 'text',   label: 'filter_field_purchased_at' },
     { key: 'notes',        group: 'text',   type: 'text',   label: 'filter_field_notes' },
     // Numbers
     { key: 'year',         group: 'numbers', type: 'number', label: 'filter_field_year',     integer: true },
     { key: 'price',        group: 'numbers', type: 'number', label: 'filter_field_price' },
     { key: 'rating',       group: 'numbers', type: 'number', label: 'filter_field_rating',   integer: true, min: 0, max: 5 },
     { key: 'quantity',     group: 'numbers', type: 'number', label: 'filter_field_quantity', integer: true, min: 0 },
+    { key: 'alcohol_pct',  group: 'numbers', type: 'number', label: 'filter_field_alcohol',  min: 0 },
     // Choice
     { key: 'type',          group: 'choice', type: 'choice', label: 'filter_field_type' },
     { key: 'bottle_format', group: 'choice', type: 'choice', label: 'filter_field_bottle_format' },
-    // Date
-    { key: 'purchased_at', group: 'date',   type: 'date',   label: 'filter_field_purchased_at' },
     // Drink window (virtual, computed from drink_from/drink_until)
     { key: 'drink_window', group: 'drinkwindow', type: 'drinkwindow', label: 'filter_group_drinkwindow' },
   ];
@@ -45,7 +46,6 @@
     { key: 'text',         label: 'filter_group_text',        icon: 'mdi-format-text' },
     { key: 'numbers',      label: 'filter_group_numbers',     icon: 'mdi-numeric' },
     { key: 'choice',       label: 'filter_group_choice',      icon: 'mdi-format-list-bulleted' },
-    { key: 'date',         label: 'filter_group_date',        icon: 'mdi-calendar' },
     { key: 'drinkwindow',  label: 'filter_group_drinkwindow', icon: 'mdi-clock-outline' },
   ];
 
@@ -85,9 +85,8 @@
   };
 
   function apiBase() {
-    // INGRESS is declared via `const INGRESS = '{{ ingress }}'` in index.html.
-    // Because const doesn't attach to window, reach it via eval from the outer
-    // script scope - but fall back gracefully if it doesn't exist.
+    // index.html sets window.INGRESS; the typeof check covers pages that
+    // only declare `const INGRESS` in script scope.
     var ingress = '';
     try { ingress = window.INGRESS != null ? window.INGRESS : (typeof INGRESS !== 'undefined' ? INGRESS : ''); }
     catch (e) { /* ignore */ }
@@ -164,6 +163,7 @@
       if (!state.rules.hasOwnProperty(fieldKey)) continue;
       var rule = state.rules[fieldKey];
       if (!rule || !rule.op) continue;
+      if (!isRuleActive(rule)) continue;
       if (!evalRule(ds, fieldKey, rule)) return false;
     }
     return true;
@@ -269,8 +269,11 @@
   function dwStatus(ds) {
     var until = parseInt(ds.drink_until, 10);
     var from  = parseInt(ds.drink_from, 10);
-    if (!until) return null;
     var year = new Date().getFullYear();
+    if (!until) {
+      if (from && from > year) return 'future';
+      return null;
+    }
     if (until < year) return 'past';
     if (until === year) return 'last';
     if ((!from || from <= year) && until >= year) return 'in';
@@ -583,6 +586,11 @@
       state.editingId = null;
       state.editingName = '';
     }
+    // Closing without "Apply" discards unapplied edits: reload the last
+    // saved rules so they can't kick in on a later applyFilters() call.
+    state.rules = {};
+    load();
+    updateBadge();
   }
 
   function apply() {
@@ -710,7 +718,7 @@
   function overwriteEditingPreset() {
     if (!state.editingId) return;
     var name = (state.editingName || '').trim();
-    if (!name) { window.alert(tr('filter_preset_name_exists')); return; }
+    if (!name) { appToast(tr('filter_preset_save_prompt'), 'error'); return; }
     fetch(apiBase() + '/' + state.editingId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -718,7 +726,7 @@
     }).then(function (r) { return r.json().then(function (d) { return { status: r.status, data: d }; }); })
       .then(function (res) {
         if (res.status === 409) {
-          window.alert(tr('filter_preset_name_exists'));
+          appToast(tr('filter_preset_name_exists'), 'error');
           return;
         }
         if (res.data && res.data.ok) {
@@ -738,7 +746,12 @@
   }
 
   function confirmDeletePreset(preset) {
-    if (!window.confirm(tr('filter_preset_delete_confirm'))) return;
+    appConfirm(tr('filter_preset_delete_confirm')).then(function (ok) {
+      if (ok) deletePreset(preset);
+    });
+  }
+
+  function deletePreset(preset) {
     fetch(apiBase() + '/' + preset.id, { method: 'DELETE' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -812,7 +825,7 @@
     }).then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
       .then(function (res) {
         if (res.status === 409) {
-          window.alert(tr('filter_preset_name_exists'));
+          appToast(tr('filter_preset_name_exists'), 'error');
           return;
         }
         if (res.data && res.data.ok) {
@@ -856,7 +869,7 @@
     if (input) {
       input.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') { e.preventDefault(); confirmNameDialog(); }
-        else if (e.key === 'Escape') { e.preventDefault(); closeNameDialog(); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeNameDialog(); }
       });
     }
   })();

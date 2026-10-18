@@ -483,3 +483,64 @@ class TestExplicitProviderNone:
         opts_file.write_text('{"ai_provider": "none", "anthropic_api_key": "sk-test-123"}')
         monkeypatch.setattr(wine_app, "OPTIONS_PATH", str(opts_file))
         assert wine_app.load_options()["ai_provider"] == "none"
+
+
+# ── cleanup_orphan_uploads() ──────────────────────────────────────────────────
+
+class TestCleanupOrphanUploads:
+    def test_removes_old_orphans_keeps_referenced_and_fresh(self):
+        """Old unreferenced uploads are swept; referenced and fresh ones stay."""
+        import os
+        import pathlib
+        import sqlite3
+        import time as time_mod
+
+        wine_app.init_db()
+        upload_dir = pathlib.Path(wine_app.UPLOAD_DIR)
+        db_path = wine_app.DB_PATH
+
+        old = time_mod.time() - 48 * 3600
+        for name in ("orphan-old.jpg", "wine-ref.jpg", "chat-ref.jpg", "orphan-fresh.jpg"):
+            (upload_dir / name).write_bytes(b"x")
+        for name in ("orphan-old.jpg", "wine-ref.jpg", "chat-ref.jpg"):
+            os.utime(upload_dir / name, (old, old))
+
+        conn = sqlite3.connect(db_path)
+        conn.execute("INSERT INTO wines (name, image) VALUES ('W', 'wine-ref.jpg')")
+        conn.execute("INSERT INTO chat_sessions (title, created, updated) VALUES ('s', 'c', 'u')")
+        conn.execute(
+            "INSERT INTO chat_messages (session_id, role, content, timestamp, image_path) "
+            "VALUES (1, 'user', 'hi', 't', 'chat-ref.jpg')"
+        )
+        conn.commit()
+        conn.close()
+
+        wine_app.cleanup_orphan_uploads()
+
+        assert not (upload_dir / "orphan-old.jpg").exists()
+        assert (upload_dir / "wine-ref.jpg").exists()
+        assert (upload_dir / "chat-ref.jpg").exists()
+        assert (upload_dir / "orphan-fresh.jpg").exists()
+
+
+class TestAddonConfigSchema:
+    @staticmethod
+    def _config_block(name):
+        path = os.path.join(APP_DIR, "..", "config.yaml")
+        keys, inside = set(), False
+        with open(path) as f:
+            for line in f:
+                if line.startswith(f"{name}:"):
+                    inside = True
+                elif inside and not line.startswith("  "):
+                    inside = False
+                elif inside:
+                    keys.add(line.split(":", 1)[0].strip())
+        return keys
+
+    def test_every_option_default_is_declared(self, monkeypatch):
+        monkeypatch.setattr(wine_app, "OPTIONS_PATH", "/nonexistent/options.json")
+        monkeypatch.setattr(wine_app, "DB_PATH", "/nonexistent/wine.db")
+        defaults = set(wine_app.load_options())
+        assert defaults <= self._config_block("options")
+        assert defaults <= self._config_block("schema")
