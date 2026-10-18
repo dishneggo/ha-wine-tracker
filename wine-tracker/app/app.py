@@ -6,7 +6,7 @@ import sqlite3
 import time
 import uuid
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, g, session, Response
 from werkzeug.security import generate_password_hash, check_password_hash
 from translations import TRANSLATIONS
@@ -43,11 +43,93 @@ def parse_user_string(raw):
     return users
 
 
+def load_users_file(path):
+    """Load pre-hashed users from a JSON file.
+
+    Format: {"name": {"hash": "<werkzeug hash>", "role": "admin|readonly"}}
+    Hashes come from scripts/hash_password.py, so no plaintext password is
+    ever stored on disk or in the environment.
+    """
+    with open(path, "r") as f:
+        raw = json.load(f)
+    if not isinstance(raw, dict):
+        raise ValueError("users file must be a JSON object")  # noqa: TRY004
+    users = {}
+    for name, entry in raw.items():
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("users file: empty user name")
+        if not isinstance(entry, dict) or not isinstance(entry.get("hash"), str):
+            raise ValueError(f"users file: entry for {name!r} needs a 'hash' string")  # noqa: TRY004
+        if not entry["hash"].startswith(("pbkdf2:", "scrypt:")):
+            raise ValueError(f"users file: entry for {name!r} is not a werkzeug hash")
+        role = entry.get("role", "admin")
+        if role not in ("admin", "readonly"):
+            raise ValueError(f"users file: unknown role {role!r} for {name!r}")
+        users[name.strip()] = {"hash": entry["hash"], "role": role}
+    return users
+
+
+_PLACEHOLDER_SECRETS = {"change-this-to-a-random-string", "changeme", "secret", ""}
+_PLACEHOLDER_PASSWORDS = {"changeme", "admin", "password", "pass"}
+
+
+def validate_hosted_config(auth_enabled, secret_key, users, plain_users_raw):
+    """Refuse to start a public (HOSTED_MODE) instance with weak settings.
+
+    Raises RuntimeError with a message that never contains secret values.
+    """
+    problems = []
+    if not auth_enabled:
+        problems.append("AUTH_ENABLED must be true")
+    if not secret_key or len(secret_key) < 32 or secret_key in _PLACEHOLDER_SECRETS:
+        problems.append("SECRET_KEY must be set to at least 32 random characters")
+    if not users:
+        problems.append("at least one user is required (USERS_FILE or USERS)")
+    for pair in (plain_users_raw or "").split(","):
+        parts = [p.strip() for p in pair.split(":")]
+        if len(parts) >= 2 and (parts[1].lower() in _PLACEHOLDER_PASSWORDS or len(parts[1]) < 12):
+            problems.append(f"password for user {parts[0]!r} is a placeholder or shorter than 12 characters")
+    if problems:
+        raise RuntimeError("HOSTED_MODE refuses to start: " + "; ".join(problems))
+
+
+HOSTED_MODE = os.environ.get("HOSTED_MODE", "").strip().lower() in ("1", "true", "yes")
+
 _dev_auth = os.environ.get("DEV_AUTH", "")
 AUTH_ENABLED = os.environ.get("AUTH_ENABLED", "false").lower() == "true" or bool(_dev_auth.strip())
 
+_users_file = os.environ.get("USERS_FILE", "").strip()
 _users_raw = _dev_auth if _dev_auth.strip() else os.environ.get("USERS", "")
-_USERS = parse_user_string(_users_raw) if AUTH_ENABLED else {}
+if AUTH_ENABLED and _users_file:
+    _USERS = load_users_file(_users_file)
+    _users_raw = ""
+else:
+    _USERS = parse_user_string(_users_raw) if AUTH_ENABLED else {}
+
+if HOSTED_MODE:
+    if _dev_auth.strip():
+        raise RuntimeError("HOSTED_MODE refuses to start: DEV_AUTH is for development only")
+    validate_hosted_config(AUTH_ENABLED, os.environ.get("SECRET_KEY", ""), _USERS, _users_raw)
+    app.config.update(
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_NAME="wt_session",
+        PERMANENT_SESSION_LIFETIME=timedelta(days=int(os.environ.get("SESSION_DAYS", "14"))),
+    )
+
+# Request body cap (uploads, imports). Hosted default 20 MB, matching nginx.
+# Unset (unlimited, upstream behaviour) for the HA add-on unless MAX_UPLOAD_MB is set.
+_max_mb = os.environ.get("MAX_UPLOAD_MB", "20" if HOSTED_MODE else "").strip()
+if _max_mb:
+    app.config["MAX_CONTENT_LENGTH"] = int(_max_mb) * 1024 * 1024
+
+
+@app.errorhandler(413)
+def request_too_large(_e):
+    if request.path.startswith("/api/") or request.headers.get("X-Requested-With"):
+        return jsonify(ok=False, error="too_large"), 413
+    return Response("Upload too large", status=413, mimetype="text/plain")
 
 
 def warn_missing_secret_key():
@@ -804,17 +886,19 @@ def login():
         password = request.form.get("password", "")
         user_data = _USERS.get(username)
         if user_data and check_password_hash(user_data["hash"], password):
+            # New session on login (no fixation of a pre-login session).
+            session.clear()
             session["user"] = username
             session["role"] = user_data["role"]
+            session.permanent = HOSTED_MODE
             return redirect(g.get("ingress", "") + "/")
         return render_template("login.html", error=True)
     return render_template("login.html", error=False)
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 def logout():
-    session.pop("user", None)
-    session.pop("role", None)
+    session.clear()
     return redirect(url_for("login"))
 
 

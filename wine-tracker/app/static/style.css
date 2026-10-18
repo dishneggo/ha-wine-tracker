@@ -1236,6 +1236,10 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
   transition: color .2s;
 }
 .settings-footer-logout:hover { color: var(--accent2); }
+.settings-footer-logout-form { margin: 0; display: contents; }
+button.settings-footer-logout {
+  background: none; border: 0; padding: 0; font: inherit; font-weight: 600; cursor: pointer;
+}
 
 /* Data section (Export / Import) - inherits settings-row layout, adds hint
    below the label and aligns label to the top so long text wraps naturally. */
