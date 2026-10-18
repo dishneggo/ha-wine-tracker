@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css">
+<link rel="stylesheet" href="{{ ingress }}/static/style.css">
+<script>
+(function(){var p={{ user_prefs | tojson }};var any=false;for(var k in p){any=true;try{localStorage.setItem(k,p[k])}catch(e){}}window._serverPrefsEmpty=!any;var n=localStorage.getItem('wine-theme-name')||'homeassistant';if(n&&n!=='classic')document.documentElement.setAttribute('data-theme',n);var s=localStorage.getItem('wine-theme')||'system';var e=s==='system'?(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'):s;if(e==='light')document.documentElement.classList.add('light');})();
+</script>
+<title>Wine Tracker</title>
+</head>
+<body>
+
+<header>
+  <a class="nav-brand" href="{{ ingress }}/"><img src="{{ ingress }}/static/logo.png" alt="Wine Tracker" class="nav-logo"></a>
+  <nav class="nav-links">
+    <a class="nav-link active" href="{{ ingress }}/">{{ t.nav_cellar }}</a>
+    {% if ai_enabled %}<a class="nav-link" href="#" id="chatFab" onclick="event.preventDefault();toggleChatPanel()">{{ t.chat_title }}</a>{% endif %}
+    <a class="nav-link" href="{{ ingress }}/timeline">{{ t.timeline }}</a>
+    <a class="nav-link" href="{{ ingress }}/stats">{{ t.stats_title }}</a>
+  </nav>
+  <button class="nav-hamburger" onclick="toggleNavMenu(event)" aria-label="Menu"><i class="mdi mdi-menu"></i></button>
+  <div class="nav-menu" id="navMenu">
+    <a href="{{ ingress }}/" class="nav-menu-item active">{{ t.nav_cellar }}</a>
+    {% if ai_enabled %}<a href="#" class="nav-menu-item" onclick="event.preventDefault();toggleNavMenu();toggleChatPanel()">{{ t.chat_title }}</a>{% endif %}
+    <a href="{{ ingress }}/timeline" class="nav-menu-item">{{ t.timeline }}</a>
+    <a href="{{ ingress }}/stats" class="nav-menu-item">{{ t.stats_title }}</a>
+  </div>
+  <div class="header-spacer"></div>
+  <div id="bottleCountBadge">
+    <span><span id="bottleCountNum">{{ wines|sum(attribute='quantity') }}</span> {{ t.bottles_abbr }}</span>
+    <span><span id="wineCountNum">{{ wines|length }}</span> {{ t.stats_pill_wines }}</span>
+  </div>
+  <div class="search-wrap">
+    <i class="mdi mdi-magnify search-icon"></i>
+    <input type="text" id="searchInput" placeholder="{{ t.search_placeholder }}" autocomplete="off" oninput="debouncedFilter()">
+    <button type="button" class="search-clear" onclick="clearSearch()">×</button>
+  </div>
+  {% if used_types|length > 0 %}
+  <div class="filter-dropdown-wrap">
+    <button class="filter-btn" onclick="handleFilterBtnClick()" title="Filter">
+      <i class="mdi mdi-filter-variant"></i>
+      <span class="filter-btn-badge" id="advFilterOuterBadge" hidden></span>
+    </button>
+    <div class="filter-dropdown" id="filterDropdown">
+      <div class="filter-section-title">{{ t.filter_title_type }}</div>
+      <div class="filter-list" id="filterTabs">
+        <label class="filter-option active" data-type="">
+          <input type="radio" name="wineType" value="" checked onchange="filterByType('')"> {{ t.filter_all }}
+        </label>
+        {% for wt in used_types %}
+        <label class="filter-option" data-type="{{ wt }}">
+          <input type="radio" name="wineType" value="{{ wt }}" onchange="filterByType('{{ wt }}')"> {{ wt | wine_type }}
+        </label>
+        {% endfor %}
+      </div>
+      <div id="filterDrinkWindowSection" style="display:none">
+        <hr class="filter-divider">
+        <div class="filter-section-title">{{ t.filter_title_dw }}</div>
+        <div class="filter-list" id="filterDrinkWindow">
+          <label class="filter-option active" data-dw="">
+            <input type="radio" name="drinkWindow" value="" checked onchange="filterByDrinkWindow('')"> {{ t.filter_all }}
+          </label>
+          <label class="filter-option" data-dw="in">
+            <input type="radio" name="drinkWindow" value="in" onchange="filterByDrinkWindow('in')"> {{ t.filter_dw_in }}
+          </label>
+          <label class="filter-option" data-dw="last">
+            <input type="radio" name="drinkWindow" value="last" onchange="filterByDrinkWindow('last')"> {{ t.filter_dw_last }}
+          </label>
+          <label class="filter-option" data-dw="past">
+            <input type="radio" name="drinkWindow" value="past" onchange="filterByDrinkWindow('past')"> {{ t.filter_dw_past }}
+          </label>
+        </div>
+      </div>
+      <hr class="filter-divider">
+      <label class="filter-option toggle-empty-option" id="toggleEmptyBtn" onclick="toggleEmpty()">
+        <i class="mdi mdi-eye-outline"></i> <span class="toggle-empty-label">{{ t.toggle_empty_show }}</span>
+      </label>
+      <hr class="filter-divider">
+      <button type="button" class="filter-option filter-option-advanced" onclick="openAdvancedFilter()">
+        <i class="mdi mdi-filter-cog-outline"></i> {{ t.filter_advanced_show }}
+      </button>
+    </div>
+  </div>
+  {% endif %}
+  <button class="theme-toggle" onclick="openModal('settingsModal')" title="{{ t.settings_title }}"><i class="mdi mdi-cog"></i></button>
+</header>
+
+<!-- Wine Grid -->
+<div class="grid view-cards" id="wineGrid">
+  {% if not wines %}
+  <div class="empty-state" style="grid-column: 1/-1">
+    <div><img src="{{ ingress }}/static/logo.png" alt="Wine Tracker" class="empty-state-logo"></div>
+    <p>{{ t.empty_no_wines }}<br>{{ t.empty_add_first }}</p>
+  </div>
+  {% endif %}
+
+  {% for w in wines %}
+  <div class="card {% if w['quantity'] == 0 %}empty{% endif %}" data-id="{{ w['id'] }}"
+       data-name="{{ w['name'] }}" data-year="{{ w['year'] or '' }}"
+       data-type="{{ w['type'] or '' }}" data-region="{{ w['region'] or '' }}"
+       data-quantity="{{ w['quantity'] }}" data-rating="{{ w['rating'] }}"
+       data-notes="{{ w['notes'] or '' }}" data-image="{{ w['image'] or '' }}"
+       data-purchased_at="{{ w['purchased_at'] or '' }}" data-price="{{ w['price'] or '' }}"
+       data-drink_from="{{ w['drink_from'] or '' }}" data-drink_until="{{ w['drink_until'] or '' }}"
+       data-location="{{ w['location'] or '' }}"
+       data-grape="{{ w['grape'] or '' }}"
+       data-producer="{{ w['producer'] or '' }}"
+       data-alcohol_pct="{{ w['alcohol_pct'] or '' }}"
+       data-vivino_id="{{ w['vivino_id'] or '' }}"
+       data-bottle_format="{{ w['bottle_format'] or '0.75' }}">
+
+    {% if w['quantity'] == 0 %}
+      <div class="ribbon ribbon-empty">{{ t.ribbon_empty }}</div>
+    {% elif w['type'] %}
+      <div class="ribbon ribbon-{{ w['type']|lower|replace('é','e')|replace('ö','oe') }}">{{ w['type'] | wine_type }}</div>
+    {% endif %}
+
+    <div class="card-img{% if w['image'] %} shimmer{% endif %}" onclick="cardImgClick(this)">
+      {% if w['image'] %}
+        <img src="{{ ingress }}/uploads/{{ w['image'] }}" alt="{{ w['name'] }}" loading="lazy">
+      {% else %}
+        <i class="mdi {{ 'mdi-glass-flute' if w['type'] == 'Schaumwein' else 'mdi-glass-wine' }}"></i>
+      {% endif %}
+    </div>
+
+    <!-- Quantity badge -->
+    <div class="qty-badge {% if w['quantity'] > 0 %}has{% endif %}"{% if not auth_readonly %} onclick="openQtyPopover(this, event)"{% endif %}>
+      {{ w['quantity'] }} {{ t.bottle_abbr if w['quantity'] == 1 else t.bottles_abbr }}
+    </div>
+
+    <div class="card-body" onclick="viewFromCard(this)">
+      <div class="card-name" title="{{ w['name'] }}">{{ w['name'] }}</div>
+      <div class="card-meta">
+        <span>{{ w['year'] or '' }}</span>
+        {% if w['producer'] %}<span>{{ w['producer'] }}</span>{% endif %}
+        <span>{{ w['region'] or '' }}</span>
+      </div>
+      {% if w['rating'] %}
+      <div class="stars">{% for i in range(w['rating']) %}<i class="mdi mdi-star"></i>{% endfor %}{% for i in range(5 - w['rating']) %}<i class="mdi mdi-star-outline"></i>{% endfor %}</div>
+      {% endif %}
+      <div class="card-extra">
+        {% if w['price'] %}<span class="price">{{ currency }} {{ "%.2f"|format(w['price']) }}</span>{% endif %}
+        {% if w['drink_from'] or w['drink_until'] %}<span class="drink-window"><i class="mdi mdi-calendar-range"></i> {{ w['drink_from'] or '?' }}-{{ w['drink_until'] or '?' }}</span>{% endif %}
+        {% if w['grape'] %}<span><i class="mdi mdi-fruit-grapes"></i> {{ w['grape'] }}</span>{% endif %}
+        {% if w['location'] %}<span><i class="mdi mdi-map-marker"></i> {{ w['location'] }}</span>{% endif %}
+        {% if w['vivino_id'] %}<a class="card-vivino-link" href="https://www.vivino.com/w/{{ w['vivino_id'] }}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Vivino"><i class="mdi mdi-open-in-new"></i> Vivino</a>{% endif %}
+      </div>
+      {% if w['notes'] %}
+      <div class="card-notes">{{ w['notes'] }}</div>
+      {% endif %}
+    </div>
+
+    {% if not auth_readonly %}
+    <div class="card-actions">
+      <button onclick="changeQty(this,-1)" title="{{ t.btn_less }}" style="padding:.5rem .65rem">−</button>
+      <span class="qty-display" style="flex:1; display:flex; align-items:center; justify-content:center;
+                   font-size:.85rem; color: var(--gold); font-weight:700;">
+        {{ w['quantity'] }}
+      </span>
+      <button onclick="changeQty(this,1)" title="{{ t.btn_more }}" style="padding:.5rem .65rem">+</button>
+      <button onclick="editFromCard(this)"
+              title="{{ t.btn_edit }}" style="border-left:1px solid var(--border)"><i class="mdi mdi-pencil"></i></button>
+      <button onclick="dupFromCard(this)"
+              title="{{ t.btn_duplicate }}"><i class="mdi mdi-content-copy"></i></button>
+      <button class="danger" title="{{ t.btn_delete }}"
+              onclick="deleteFromCard(this)"><i class="mdi mdi-delete"></i></button>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+
+<!-- ═══════════════ DUPLICATE MODAL ═══════════════ -->
+<div class="modal-overlay" id="dupModal">
+  <div class="modal">
+    <div class="modal-header">
+      {{ t.dup_title }}
+      <button class="modal-close" onclick="closeModal('dupModal')">×</button>
+    </div>
+    <form method="post" id="dupForm">
+      <div class="modal-body">
+        <div class="dup-hint" id="dupHint"></div>
+
+        <div class="row2">
+          <div>
+            <label>{{ t.dup_new_vintage }}</label>
+            <input type="number" name="new_year" id="dup_year" min="1900" max="2099">
+          </div>
+          <div>
+            <label>{{ t.dup_qty }}</label>
+            <input type="number" name="quantity" id="dup_qty" min="0" value="1">
+          </div>
+        </div>
+
+        <p style="font-size:.8rem; color: var(--muted)">
+          {{ t.dup_hint }}
+        </p>
+
+        <button type="submit" class="btn-submit">{{ t.btn_create_dup }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ═══════════════ DELETE CONFIRM MODAL ═══════════════ -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      {{ t.delete_title }}
+      <button class="modal-close" onclick="closeModal('deleteModal')">×</button>
+    </div>
+    <div class="delete-confirm-body">
+      <div class="delete-confirm-icon"><i class="mdi mdi-glass-wine"></i></div>
+      <div class="delete-confirm-msg">
+        <span class="delete-confirm-name" id="deleteWineName"></span> {{ t.delete_really }}
+      </div>
+    </div>
+    <div class="delete-confirm-actions">
+      <button class="btn-cancel" onclick="closeModal('deleteModal')">{{ t.btn_cancel }}</button>
+      <form method="post" id="deleteForm" style="flex:1; display:contents">
+        <button type="submit" class="btn-delete">{{ t.btn_confirm_delete }}</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+{% if not auth_readonly %}
+<!-- ═══════════════ QTY POPOVER (opened from qty badge) ═══════════════ -->
+<div class="qty-popover" id="qtyPopover" style="display:none">
+  <button type="button" onclick="qtyPopoverChange(-1)" title="{{ t.btn_less }}">−</button>
+  <span class="qty-popover-count" id="qtyPopoverCount">0</span>
+  <button type="button" onclick="qtyPopoverChange(1)" title="{{ t.btn_more }}">+</button>
+</div>
+
+<!-- ═══════════════ QTY UNDO TOAST ═══════════════ -->
+<div class="qty-undo-toast" id="qtyUndoToast" style="display:none">
+  <span id="qtyUndoMsg"></span>
+  <button type="button" onclick="undoQtyChange()">{{ t.btn_undo }}</button>
+</div>
+{% endif %}
+
+
+<!-- ═══════════════ WINE VIEW MODAL ═══════════════ -->
+{% include '_wine_view_modal.html' %}
+{% include '_wine_view_extras.html' %}
+
+<!-- ═══════════════ SETTINGS MODAL ═══════════════ -->
+{% include '_settings_modal.html' %}
+{% include '_import_preview_modal.html' %}
+{% include '_advanced_filter_modal.html' %}
+
+
+<!-- ═══════════════ LIGHTBOX ═══════════════ -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+  <img id="lightboxImg" src="" alt="{{ t.lightbox_alt }}">
+</div>
+
+<script src="{{ ingress }}/static/theme.js"></script>
+<script>
+const INGRESS = '{{ ingress }}';
+const CURRENCY = '{{ currency }}';
+const T = {{ t | tojson }};
+const AUTH_READONLY = {{ auth_readonly | tojson }};
+window.T = T;
+window.INGRESS = INGRESS;
+
+// ── Hamburger Nav Menu ──────────────────────────────────────────────────────
+function toggleNavMenu(e) {
+  if (e) e.stopPropagation();
+  var menu = document.getElementById('navMenu');
+  menu.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  var menu = document.getElementById('navMenu');
+  if (menu && menu.classList.contains('open') && !e.target.closest('.nav-hamburger') && !e.target.closest('.nav-menu')) {
+    menu.classList.remove('open');
+  }
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    var menu = document.getElementById('navMenu');
+    if (menu) menu.classList.remove('open');
+  }
+});
+</script>
+{% include '_wine_edit_modal.html' %}
+<script>
+// ── View mode ────────────────────────────────────────────────────────────────
+var currentViewMode = localStorage.getItem('wineViewMode') || 'cards';
+
+function setViewMode(mode) {
+  currentViewMode = mode;
+  localStorage.setItem('wineViewMode', mode);
+  var grid = document.getElementById('wineGrid');
+  grid.className = grid.className.replace(/\bview-\w+/g, '') + ' view-' + mode;
+  // Update radio button states
+  document.querySelectorAll('.view-mode-radio input[type="radio"]').forEach(function(r) {
+    r.checked = (r.value === mode);
+  });
+  // Render or remove the table view
+  if (mode === 'table') {
+    renderTableView();
+  } else {
+    removeTableView();
+  }
+}
+
+function renderTableView() {
+  var existing = document.getElementById('wineTable');
+  if (existing) existing.remove();
+  var grid = document.getElementById('wineGrid');
+  var cards = Array.from(grid.querySelectorAll('.card'));
+  if (!cards.length) return;
+
+  var table = document.createElement('table');
+  table.id = 'wineTable';
+  table.className = 'wine-table';
+  table.style.gridColumn = '1 / -1';
+
+  // Header
+  var thead = '<thead><tr>'
+    + '<th class="wine-table-sortable wine-table-type col-type" data-sort="type"><i class="mdi mdi-swap-vertical"></i></th>'
+    + '<th class="wine-table-sortable wine-table-col-name col-name" data-sort="name">' + (T.table_col_name || 'Name') + ' <i class="mdi mdi-swap-vertical"></i></th>'
+    + '<th class="wine-table-sortable wine-table-col-year col-year" data-sort="year">' + (T.table_col_year || 'Year') + ' <i class="mdi mdi-swap-vertical"></i></th>'
+    + '<th class="wine-table-sortable wine-table-col-region col-region" data-sort="region">' + (T.table_col_region || 'Region') + ' <i class="mdi mdi-swap-vertical"></i></th>'
+    + '<th class="wine-table-sortable wine-table-col-grape col-grape" data-sort="grape">' + (T.table_col_grape || 'Grape') + ' <i class="mdi mdi-swap-vertical"></i></th>'
+    + '<th class="wine-table-sortable wine-table-right wine-table-col-price col-price" data-sort="price">' + (T.table_col_price || 'Price') + ' <i class="mdi mdi-swap-vertical"></i></th>'
+    + '<th class="wine-table-sortable wine-table-right wine-table-col-qty col-qty" data-sort="quantity">' + (T.table_col_quantity || 'Qty') + ' <i class="mdi mdi-swap-vertical"></i></th>'
+    + '</tr></thead>';
+
+  // Body
+  var tbody = '<tbody>';
+  cards.forEach(function(card) {
+    var d = card.dataset;
+    var hidden = card.style.display === 'none' ? ' style="display:none"' : '';
+    var typeCls = d.type ? d.type.toLowerCase().replace(/é/g,'e').replace(/ö/g,'oe') : '';
+    var typeLabel = d.type ? (T['wine_type_' + d.type] || d.type) : '';
+    var typeDot = d.type ? '<span class="type-dot type-dot-' + escapeHtml(typeCls) + '"></span>' : '';
+    var priceStr = d.price ? CURRENCY + ' ' + Number(d.price).toFixed(2) : '';
+    var drinkIcon = '';
+    if (d.drink_until) {
+      var yr = new Date().getFullYear();
+      var until = parseInt(d.drink_until);
+      if (until < yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:#e74c3c;font-size:.75rem" title="Past drink window"></i>';
+      else if (until === yr) drinkIcon = ' <i class="mdi mdi-alert" style="color:#e67e22;font-size:.75rem" title="Last year to drink"></i>';
+      else drinkIcon = ' <i class="mdi mdi-check-circle" style="color:#27ae60;font-size:.75rem" title="In drink window"></i>';
+    }
+    tbody += '<tr class="wine-table-row' + (parseInt(d.quantity) === 0 ? ' empty' : '') + '" data-card-id="' + d.id + '" onclick="viewWineById(\'' + d.id + '\')"' + hidden + '>'
+      + '<td class="wine-table-type col-type">' + typeDot + '</td>'
+      + '<td class="wine-table-name col-name">' + escapeHtml(d.name) + '</td>'
+      + '<td class="col-year">' + escapeHtml(d.year || '') + drinkIcon + '</td>'
+      + '<td class="col-region">' + escapeHtml(d.region || '') + '</td>'
+      + '<td class="col-grape">' + escapeHtml(d.grape || '') + '</td>'
+      + '<td class="wine-table-right col-price">' + escapeHtml(priceStr) + '</td>'
+      + '<td class="wine-table-right col-qty"' + (AUTH_READONLY ? '' : ' onclick="openQtyPopover(this, event)"') + '>' + (d.quantity || '0') + '</td>'
+      + '</tr>';
+  });
+  tbody += '</tbody>';
+  table.innerHTML = thead + tbody;
+
+  grid.appendChild(table);
+
+  // Sort click handlers - persist in localStorage
+  var savedSortCol = localStorage.getItem('wineTableSortCol') || '';
+  var savedSortAsc = localStorage.getItem('wineTableSortAsc') === 'true';
+  var sortDir = {};
+  if (savedSortCol) sortDir[savedSortCol] = savedSortAsc;
+
+  function sortTableBy(key, asc) {
+    sortDir[key] = asc;
+    localStorage.setItem('wineTableSortCol', key);
+    localStorage.setItem('wineTableSortAsc', String(asc));
+    var rows = Array.from(table.querySelectorAll('tbody tr'));
+    rows.sort(function(a, b) {
+      var aCard = document.querySelector('.card[data-id="' + a.dataset.cardId + '"]');
+      var bCard = document.querySelector('.card[data-id="' + b.dataset.cardId + '"]');
+      if (!aCard || !bCard) return 0;
+      var aVal = aCard.dataset[key] || '';
+      var bVal = bCard.dataset[key] || '';
+      if (key === 'year' || key === 'price' || key === 'quantity') {
+        aVal = parseFloat(aVal) || 0;
+        bVal = parseFloat(bVal) || 0;
+        return asc ? aVal - bVal : bVal - aVal;
+      }
+      return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+    var tbodyEl = table.querySelector('tbody');
+    rows.forEach(function(r) { tbodyEl.appendChild(r); });
+    // Update sort icons
+    table.querySelectorAll('.wine-table-sortable .mdi').forEach(function(icon) {
+      icon.className = 'mdi mdi-swap-vertical';
+      icon.style.opacity = '.5';
+    });
+    var activeTh = table.querySelector('[data-sort="' + key + '"] .mdi');
+    if (activeTh) {
+      activeTh.className = 'mdi ' + (asc ? 'mdi-chevron-up' : 'mdi-chevron-down');
+      activeTh.style.opacity = '1';
+    }
+  }
+
+  table.querySelectorAll('.wine-table-sortable').forEach(function(th) {
+    th.addEventListener('click', function() {
+      var key = th.dataset.sort;
+      var asc = !(sortDir[key] || false);
+      sortTableBy(key, asc);
+    });
+  });
+
+  // Apply saved sort on load
+  if (savedSortCol) {
+    sortTableBy(savedSortCol, savedSortAsc);
+  }
+}
+
+function removeTableView() {
+  var tbl = document.getElementById('wineTable');
+  if (tbl) tbl.remove();
+}
+
+function viewWineById(id) {
+  var card = document.querySelector('.card[data-id="' + id + '"]');
+  if (card) viewFromCard(card);
+}
+
+function syncTableVisibility() {
+  var tbl = document.getElementById('wineTable');
+  if (!tbl) return;
+  tbl.querySelectorAll('.wine-table-row').forEach(function(row) {
+    var card = document.querySelector('.card[data-id="' + row.dataset.cardId + '"]');
+    if (card) {
+      row.style.display = card.style.display;
+    }
+  });
+}
+
+// ── Client-side filter state ─────────────────────────────────────────────────
+var activeType = '';
+var activeDrinkWindow = '';
+var showEmpty = localStorage.getItem('wine-show-empty') === '1';
+var _filterTimer = null;
+
+function debouncedFilter() {
+  clearTimeout(_filterTimer);
+  _filterTimer = setTimeout(applyFilters, 150);
+}
+
+function applyFilters() {
+  var query = document.getElementById('searchInput').value.trim().toLowerCase();
+  var cards = document.querySelectorAll('.grid .card');
+  var bottleVisibleCount = 0;
+  var wineVisibleCount = 0;
+
+  cards.forEach(function(card) {
+    var d = card.dataset;
+    // Type match
+    var typeOk = !activeType || d.type === activeType;
+    // Search match (name, region, notes)
+    var searchOk = !query ||
+      (d.name || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.producer || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.region || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.year || '').indexOf(query) !== -1 ||
+      (d.grape || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.notes || '').toLowerCase().indexOf(query) !== -1;
+    // Drink window match
+    var dwOk = true;
+    if (activeDrinkWindow) {
+      var until = parseInt(d.drink_until);
+      var from = parseInt(d.drink_from);
+      var year = new Date().getFullYear();
+      if (!until) {
+        dwOk = false;
+      } else if (activeDrinkWindow === 'in') {
+        dwOk = (!from || from <= year) && until >= year;
+      } else if (activeDrinkWindow === 'last') {
+        dwOk = until === year;
+      } else if (activeDrinkWindow === 'past') {
+        dwOk = until < year;
+      }
+    }
+    // Empty match
+    var emptyOk = showEmpty || parseInt(d.quantity) > 0;
+    // Advanced filter (AND-combined with the popover filter above)
+    var advOk = !window.AdvancedFilter || window.AdvancedFilter.evaluate(d);
+
+    var visible = typeOk && searchOk && dwOk && emptyOk && advOk;
+    card.style.display = visible ? '' : 'none';
+    if (visible) bottleVisibleCount += parseInt(d.quantity) || 0;
+    if (visible) wineVisibleCount++;
+  });
+
+  // Sync table row visibility if table view is active
+  syncTableVisibility();
+
+  // Show/hide empty state
+  var grid = document.querySelector('.grid');
+  var emptyState = grid.querySelector('.empty-state');
+  if (wineVisibleCount === 0 && cards.length > 0) {
+    if (!emptyState) {
+      emptyState = document.createElement('div');
+      emptyState.className = 'empty-state';
+      emptyState.style.gridColumn = '1/-1';
+      emptyState.innerHTML = '<div><i class="mdi mdi-magnify" style="font-size:4rem"></i></div><p>' + T.empty_no_results + '</p>';
+      grid.appendChild(emptyState);
+    }
+    emptyState.style.display = '';
+  } else if (emptyState && cards.length > 0) {
+    emptyState.style.display = 'none';
+  }
+
+  // Update search-clear button visibility
+  var bottleCountEl = document.getElementById('bottleCountNum');
+  if (bottleCountEl) bottleCountEl.textContent = bottleVisibleCount;
+  var wineCountEl = document.getElementById('wineCountNum');
+  if (wineCountEl) wineCountEl.textContent = wineVisibleCount;
+  var clearBtn = document.querySelector('.search-clear');
+  if (clearBtn) clearBtn.style.display = query ? 'block' : '';
+
+  // Update tab counts
+  updateTabCounts();
+}
+
+function updateTabCounts() {
+  var opts = document.querySelectorAll('#filterTabs .filter-option');
+  if (!opts.length) return;
+  var cards = document.querySelectorAll('.grid .card');
+  var query = document.getElementById('searchInput').value.trim().toLowerCase();
+
+  // Count cards per type (respecting search + empty filter, ignoring type filter)
+  var counts = {};
+  var total = 0;
+  cards.forEach(function(card) {
+    var d = card.dataset;
+    var searchOk = !query ||
+      (d.name || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.producer || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.region || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.year || '').indexOf(query) !== -1 ||
+      (d.grape || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.notes || '').toLowerCase().indexOf(query) !== -1;
+    var dwOk = true;
+    if (activeDrinkWindow) {
+      var until = parseInt(d.drink_until);
+      var from = parseInt(d.drink_from);
+      var year = new Date().getFullYear();
+      if (!until) { dwOk = false; }
+      else if (activeDrinkWindow === 'in') { dwOk = (!from || from <= year) && until >= year; }
+      else if (activeDrinkWindow === 'last') { dwOk = until === year; }
+      else if (activeDrinkWindow === 'past') { dwOk = until < year; }
+    }
+    var emptyOk = showEmpty || parseInt(d.quantity) > 0;
+    var advOk = !window.AdvancedFilter || window.AdvancedFilter.evaluate(d);
+    if (searchOk && dwOk && emptyOk && advOk) {
+      total++;
+      var t = d.type || '';
+      counts[t] = (counts[t] || 0) + 1;
+    }
+  });
+
+  opts.forEach(function(opt) {
+    if (opt.classList.contains('toggle-empty-option')) return; // skip empty-toggle
+    var type = opt.dataset.type !== undefined ? opt.dataset.type : '';
+    var radio = opt.querySelector('input[type="radio"]');
+    var label = opt.dataset.label || opt.textContent.replace(/\s*\(\d+\)\s*$/, '').trim();
+    if (!opt.dataset.label) opt.dataset.label = label;
+    var count = type === '' ? total : (counts[type] || 0);
+    // Preserve the radio input, update only the text
+    if (radio) {
+      opt.textContent = '';
+      opt.appendChild(radio);
+      opt.appendChild(document.createTextNode(' ' + label + ' (' + count + ')'));
+    }
+  });
+
+  // Count cards per drink-window category (respecting type + search + empty, ignoring DW filter)
+  var dwSection = document.getElementById('filterDrinkWindowSection');
+  var dwOpts = document.querySelectorAll('#filterDrinkWindow .filter-option');
+  if (!dwOpts.length) return;
+  // Show/hide DW section based on whether any wine has a drink window at all
+  var anyDW = false;
+  cards.forEach(function(c) { if (parseInt(c.dataset.drink_until)) anyDW = true; });
+  if (dwSection) dwSection.style.display = anyDW ? '' : 'none';
+  if (!anyDW) return;
+  var dwCounts = { '': 0, 'in': 0, 'last': 0, 'past': 0 };
+  var curYear = new Date().getFullYear();
+  cards.forEach(function(card) {
+    var d = card.dataset;
+    var searchOk = !query ||
+      (d.name || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.region || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.notes || '').toLowerCase().indexOf(query) !== -1;
+    var typeOk = !activeType || d.type === activeType;
+    var emptyOk = showEmpty || parseInt(d.quantity) > 0;
+    var advOk = !window.AdvancedFilter || window.AdvancedFilter.evaluate(d);
+    if (!(searchOk && typeOk && emptyOk && advOk)) return;
+    dwCounts['']++;
+    var until = parseInt(d.drink_until);
+    if (!until) return;
+    var from = parseInt(d.drink_from);
+    if (until < curYear) { dwCounts['past']++; }
+    if (until === curYear) { dwCounts['last']++; }
+    if ((!from || from <= curYear) && until >= curYear) { dwCounts['in']++; }
+  });
+
+  dwOpts.forEach(function(opt) {
+    var dw = opt.dataset.dw !== undefined ? opt.dataset.dw : '';
+    var radio = opt.querySelector('input[type="radio"]');
+    var label = opt.dataset.label || opt.textContent.replace(/\s*\(\d+\)\s*$/, '').trim();
+    if (!opt.dataset.label) opt.dataset.label = label;
+    var count = dwCounts[dw] || 0;
+    if (radio) {
+      opt.textContent = '';
+      opt.appendChild(radio);
+      opt.appendChild(document.createTextNode(' ' + label + ' (' + count + ')'));
+    }
+  });
+}
+
+function filterByType(type) {
+  activeType = type;
+  // Update active states
+  var opts = document.querySelectorAll('#filterTabs .filter-option');
+  opts.forEach(function(opt) {
+    var optType = opt.dataset.type !== undefined ? opt.dataset.type : '';
+    opt.classList.toggle('active', optType === activeType);
+  });
+  applyFilters();
+}
+
+function filterByDrinkWindow(val) {
+  activeDrinkWindow = val;
+  var opts = document.querySelectorAll('#filterDrinkWindow .filter-option');
+  opts.forEach(function(opt) {
+    opt.classList.toggle('active', (opt.dataset.dw || '') === val);
+  });
+  applyFilters();
+}
+
+function toggleEmpty() {
+  showEmpty = !showEmpty;
+  var btn = document.getElementById('toggleEmptyBtn');
+  var icon = btn.querySelector('i.mdi');
+  var label = btn.querySelector('.toggle-empty-label');
+  if (icon) icon.className = 'mdi ' + (showEmpty ? 'mdi-eye-off-outline' : 'mdi-eye-outline');
+  if (label) label.textContent = showEmpty ? T.toggle_empty_hide : T.toggle_empty_show;
+  applyFilters();
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  applyFilters();
+}
+
+function toggleFilterDropdown() {
+  var dd = document.getElementById('filterDropdown');
+  if (dd) dd.classList.toggle('open');
+}
+
+// Called from the filter button: either opens the popover or jumps straight to
+// the advanced filter modal, depending on the user setting.
+function handleFilterBtnClick() {
+  var useAdvancedDefault = localStorage.getItem('wine-advanced-filter-default') === '1';
+  if (useAdvancedDefault) {
+    openAdvancedFilter();
+  } else {
+    toggleFilterDropdown();
+  }
+}
+
+function openAdvancedFilter() {
+  // Close the popover (if open) before opening the modal
+  var dd = document.getElementById('filterDropdown');
+  if (dd) dd.classList.remove('open');
+  if (window.AdvancedFilter) window.AdvancedFilter.openModal();
+}
+document.addEventListener('click', function(e) {
+  var wrap = document.querySelector('.filter-dropdown-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    var dd = document.getElementById('filterDropdown');
+    if (dd) dd.classList.remove('open');
+  }
+});
+
+function ensureFilterTab(type) {
+  if (!type) return;
+  var list = document.getElementById('filterTabs');
+  if (!list) return; // filter dropdown not rendered (no wines yet)
+  // Check if option for this type already exists
+  var existing = list.querySelectorAll('.filter-option');
+  for (var i = 0; i < existing.length; i++) {
+    if (existing[i].dataset.type === type) return;
+  }
+  var lbl = document.createElement('label');
+  lbl.className = 'filter-option';
+  lbl.dataset.type = type;
+  var radio = document.createElement('input');
+  radio.type = 'radio';
+  radio.name = 'wineType';
+  radio.value = type;
+  radio.onchange = function() { filterByType(type); };
+  lbl.appendChild(radio);
+  lbl.appendChild(document.createTextNode(' ' + (T['wine_type_' + type] || type)));
+  list.appendChild(lbl);
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if (id === 'settingsModal') {
+    updateThemeSegmented();
+    updateThemeDropdown();
+    initChatRecordingToggle();
+    initAdvancedFilterDefaultToggle();
+    initShowEmptyDefaultToggle();
+  }
+}
+
+function initAdvancedFilterDefaultToggle() {
+  var cb = document.getElementById('advancedFilterDefaultToggle');
+  if (cb) cb.checked = localStorage.getItem('wine-advanced-filter-default') === '1';
+}
+
+function setAdvancedFilterDefault(enabled) {
+  if (enabled) localStorage.setItem('wine-advanced-filter-default', '1');
+  else localStorage.removeItem('wine-advanced-filter-default');
+}
+
+function initShowEmptyDefaultToggle() {
+  var cb = document.getElementById('showEmptyDefaultToggle');
+  if (cb) cb.checked = localStorage.getItem('wine-show-empty') === '1';
+}
+
+function setShowEmptyDefault(enabled) {
+  if (enabled) localStorage.setItem('wine-show-empty', '1');
+  else localStorage.removeItem('wine-show-empty');
+  showEmpty = enabled;
+  applyFilters();
+  // Sync the quick-toggle button label/icon
+  var icon = document.querySelector('#toggleEmptyBtn .mdi');
+  var label = document.querySelector('#toggleEmptyBtn .toggle-empty-label');
+  if (icon) icon.className = 'mdi ' + (showEmpty ? 'mdi-eye-off-outline' : 'mdi-eye-outline');
+  if (label) label.textContent = showEmpty ? T.toggle_empty_hide : T.toggle_empty_show;
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// Close on overlay click (skip wineModal - handled by _wine_edit_modal.html)
+document.querySelectorAll('.modal-overlay').forEach(function(el) {
+  el.addEventListener('click', function(e) {
+    if (e.target !== el) return;
+    if (el.id === 'wineModal') return; // handled by include
+    el.classList.remove('open');
+  });
+});
+
+// ESC closes modals & lightbox (wineModal: guard if dirty)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeLightbox();
+    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
+      if (el.id === 'wineModal') {
+        tryCloseWineModal();
+      } else {
+        el.classList.remove('open');
+      }
+    });
+  }
+});
+
+// Helper: get wine data from closest .card element
+function getCardData(el) {
+  const card = el.closest('.card');
+  const d = card.dataset;
+  return { id: d.id, wine: {
+    name: d.name, year: d.year ? parseInt(d.year) : null,
+    type: d.type || null, region: d.region || null,
+    quantity: parseInt(d.quantity) || 0, rating: parseInt(d.rating) || 0,
+    notes: d.notes || '', image: d.image || null,
+    purchased_at: d.purchased_at || null, price: d.price ? parseFloat(d.price) : null,
+    drink_from: d.drink_from ? parseInt(d.drink_from) : null,
+    drink_until: d.drink_until ? parseInt(d.drink_until) : null,
+    location: d.location || null,
+    grape: d.grape || null,
+    producer: d.producer || null,
+    alcohol_pct: d.alcohol_pct ? parseFloat(d.alcohol_pct) : null,
+    bottle_format: d.bottle_format ? parseFloat(d.bottle_format) : 0.75,
+    vivino_id: d.vivino_id ? parseInt(d.vivino_id) : null
+  }};
+}
+
+function cardImgClick(el) {
+  viewFromCard(el);
+}
+
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+}
+
+// ── Lightbox Pinch-to-Zoom ────────────────────────────────────────────────
+(function() {
+  var lbImg = null;
+  var startDist = 0;
+  var currentScale = 1;
+  var startScale = 1;
+  var translateX = 0, translateY = 0;
+  var startX = 0, startY = 0;
+  var isPinching = false;
+  var isPanning = false;
+  var lastTapTime = 0;
+
+  function getTouchDist(touches) {
+    var dx = touches[0].clientX - touches[1].clientX;
+    var dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function applyTransform() {
+    if (lbImg) {
+      lbImg.style.transform = 'translate(' + translateX + 'px, ' + translateY + 'px) scale(' + currentScale + ')';
+    }
+  }
+
+  function resetZoom() {
+    currentScale = 1;
+    translateX = 0;
+    translateY = 0;
+    if (lbImg) {
+      lbImg.style.transform = '';
+      lbImg.style.transition = '';
+    }
+  }
+
+  // Wrap openLightbox to attach zoom support
+  var origOpenLightbox = window.openLightbox;
+  window.openLightbox = function(src) {
+    origOpenLightbox(src);
+    setTimeout(function() {
+      var overlay = document.querySelector('.lightbox-overlay');
+      if (overlay) {
+        lbImg = overlay.querySelector('img');
+        if (lbImg) {
+          lbImg.style.transformOrigin = 'center center';
+          resetZoom();
+        }
+      }
+    }, 50);
+  };
+
+  // Wrap closeLightbox to reset zoom
+  var origCloseLightbox = window.closeLightbox;
+  window.closeLightbox = function() {
+    resetZoom();
+    lbImg = null;
+    origCloseLightbox();
+  };
+
+  document.addEventListener('touchstart', function(e) {
+    if (!lbImg || !lbImg.closest('.lightbox-overlay.open')) return;
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      isPinching = true;
+      isPanning = false;
+      startDist = getTouchDist(e.touches);
+      startScale = currentScale;
+    } else if (e.touches.length === 1 && currentScale > 1) {
+      isPanning = true;
+      isPinching = false;
+      startX = e.touches[0].clientX - translateX;
+      startY = e.touches[0].clientY - translateY;
+    }
+    // Double-tap detection
+    if (e.touches.length === 1) {
+      var now = Date.now();
+      if (now - lastTapTime < 300) {
+        e.preventDefault();
+        if (currentScale > 1.05) {
+          currentScale = 1;
+          translateX = 0;
+          translateY = 0;
+        } else {
+          currentScale = 2;
+          translateX = 0;
+          translateY = 0;
+        }
+        lbImg.style.transition = 'transform .25s ease';
+        applyTransform();
+        lastTapTime = 0;
+      } else {
+        lastTapTime = now;
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!lbImg || !lbImg.closest('.lightbox-overlay.open')) return;
+    if (isPinching && e.touches.length === 2) {
+      e.preventDefault();
+      var dist = getTouchDist(e.touches);
+      currentScale = Math.min(Math.max(startScale * (dist / startDist), 1), 5);
+      lbImg.style.transition = 'none';
+      applyTransform();
+    } else if (isPanning && e.touches.length === 1 && currentScale > 1) {
+      e.preventDefault();
+      translateX = e.touches[0].clientX - startX;
+      translateY = e.touches[0].clientY - startY;
+      lbImg.style.transition = 'none';
+      applyTransform();
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', function(e) {
+    if (!lbImg || !lbImg.closest('.lightbox-overlay.open')) return;
+    if (e.touches.length < 2) isPinching = false;
+    if (e.touches.length < 1) {
+      isPanning = false;
+      // Snap back to 1x if close
+      if (currentScale < 1.1) {
+        currentScale = 1;
+        translateX = 0;
+        translateY = 0;
+        lbImg.style.transition = 'transform .2s ease';
+        applyTransform();
+      }
+    }
+  });
+})();
+
+function editFromCard(el) {
+  const { id, wine } = getCardData(el);
+  openWineModal(id, wine);
+}
+
+// ── View Modal ──────────────────────────────────────────────────────────────
+var BOTTLE_FORMATS = {
+  0.1875: 'Piccolo (0.1875 l)', 0.375: 'Demi (0.375 l)', 0.75: 'Standard (0.75 l)',
+  1.5: 'Magnum (1.5 l)', 3: 'Double Magnum (3 l)', 4.5: 'Jéroboam (4.5 l)',
+  6: 'Impérial (6 l)', 9: 'Salmanazar (9 l)', 12: 'Balthazar (12 l)',
+  15: 'Nebukadnezar (15 l)'
+};
+
+function viewFromCard(el) {
+  var d = getCardData(el);
+  // Fetch full wine data from API to include maturity/taste/food pairings
+  fetch(INGRESS + '/api/wine/' + d.id)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) openViewModal(data.wine.id, data.wine);
+      else openViewModal(d.id, d.wine);
+    })
+    .catch(function() { openViewModal(d.id, d.wine); });
+}
+
+function viewRow(icon, label, value) {
+  return '<div class="view-row"><i class="mdi ' + icon + '"></i>'
+       + '<span class="view-label">' + escapeHtml(label) + '</span>'
+       + '<span class="view-value">' + escapeHtml(String(value)) + '</span></div>';
+}
+
+function openViewModal(id, wine) {
+  var w = wine || {};
+  window._viewWineId = id;
+  window._viewWineData = w;
+
+  document.getElementById('viewModalTitle').textContent = T.modal_view_title || 'Wine details';
+
+  var html = '';
+
+  // Photo panel (on right on desktop)
+  var ribbonHtml = '';
+  if (w.type) {
+    var typeKey = 'wine_type_' + w.type;
+    var typeLabel = T[typeKey] || w.type;
+    ribbonHtml = '<span class="ribbon ribbon-' + escapeHtml(w.type.toLowerCase().replace(/[éö]/g, function(c){return c==='é'?'e':'oe';})) + '">' + escapeHtml(typeLabel) + '</span>';
+  }
+  if (w.image) {
+    html += '<div class="view-photo-panel" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
+          + ribbonHtml
+          + '<img src="' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '" alt="' + escapeHtml(w.name) + '">'
+          + '</div>';
+  } else if (ribbonHtml) {
+    html += '<div class="view-photo-panel view-no-image">' + ribbonHtml + '</div>';
+  }
+
+  // Fields panel (on left on desktop)
+  html += '<div class="view-fields-panel">';
+
+  // Name
+  html += '<div class="view-name">' + escapeHtml(w.name) + '</div>';
+
+  // Meta: year + region
+  var meta = [];
+  if (w.year) meta.push('<span>' + w.year + '</span>');
+  if (w.region) meta.push('<span>' + escapeHtml(w.region) + '</span>');
+  if (meta.length) html += '<div class="view-meta">' + meta.join('') + '</div>';
+
+  // Rating stars
+  if (w.rating && w.rating > 0) {
+    var stars = '';
+    for (var i = 0; i < 5; i++) stars += '<i class="mdi ' + (i < w.rating ? 'mdi-star' : 'mdi-star-outline') + '"></i>';
+    html += '<div class="view-stars">' + stars + '</div>';
+  }
+
+  // Details section
+  var details = '';
+
+  // Quantity (always shown)
+  if (w.producer) details += viewRow('mdi-home-city-outline', T.label_producer || 'Producer', w.producer);
+  details += viewRow('mdi-bottle-wine', T.label_quantity || 'Quantity', w.quantity);
+
+  // Bottle format (only if not standard)
+  if (w.bottle_format && parseFloat(w.bottle_format) !== 0.75) {
+    var fmt = BOTTLE_FORMATS[parseFloat(w.bottle_format)] || w.bottle_format + ' l';
+    details += viewRow('mdi-ruler', T.label_bottle_format || 'Format', fmt);
+  }
+
+  // Grape
+  if (w.grape) details += viewRow('mdi-fruit-grapes', T.label_grape || 'Grape', w.grape);
+  if (w.alcohol_pct) details += viewRow('mdi-percent-outline', T.label_alcohol_pct || 'Alcohol', w.alcohol_pct + '% vol');
+
+  // Purchased at
+  if (w.purchased_at) details += viewRow('mdi-cart', T.label_purchased_at || 'Purchased at', w.purchased_at);
+
+  // Price
+  if (w.price) {
+    var currency = (typeof CURRENCY !== 'undefined' ? CURRENCY : 'CHF');
+    details += viewRow('mdi-cash', T.label_price || 'Price', currency + ' ' + Number(w.price).toFixed(2));
+  }
+
+  // Drink window
+  if (w.drink_from || w.drink_until) {
+    var window_str = (w.drink_from || '?') + ' - ' + (w.drink_until || '?');
+    details += viewRow('mdi-calendar-range', T.view_drink_window || 'Drink window', window_str);
+  }
+
+  // Location
+  if (w.location) details += viewRow('mdi-map-marker', T.label_location || 'Location', w.location);
+
+  // Vivino link
+  if (w.vivino_id) {
+    details += '<div class="view-row"><i class="mdi mdi-open-in-new"></i>'
+             + '<span class="view-label">Vivino</span>'
+             + '<a href="https://www.vivino.com/w/' + w.vivino_id + '" target="_blank" rel="noopener" class="view-vivino-link view-value">vivino.com</a></div>';
+  }
+
+  if (details) {
+    html += '<div class="view-details">' + details + '</div>';
+  }
+
+  // Notes
+  if (w.notes) {
+    html += '<div class="view-notes">' + escapeHtml(w.notes) + '</div>';
+  }
+
+  // Maturity graph, taste profile, food pairings
+  if (typeof buildWineExtrasHtml === 'function') {
+    html += buildWineExtrasHtml(w);
+  }
+
+  // Action buttons
+  html += '<div class="view-actions">';
+  if (!AUTH_READONLY) {
+    html += '<button class="btn-submit" onclick="editFromView()">' + (T.btn_edit || 'Edit') + '</button>';
+  }
+  html += '</div>';
+
+  // Close fields panel
+  html += '</div>';
+
+  document.getElementById('viewModalBody').innerHTML = html;
+  openModal('viewModal');
+}
+
+function editFromView() {
+  closeModal('viewModal');
+  openWineModal(window._viewWineId, window._viewWineData);
+}
+
+function dupFromCard(el) {
+  const { id, wine } = getCardData(el);
+  openDupModal(id, wine.name, wine.year, wine.quantity);
+}
+
+function deleteFromCard(el) {
+  const { id, wine } = getCardData(el);
+  document.getElementById('deleteWineName').textContent = wine.name;
+  document.getElementById('deleteForm').dataset.wineId = id;
+  openModal('deleteModal');
+}
+
+function openDupModal(id, name, year, qty) {
+  document.getElementById('dupForm').dataset.wineId = id;
+  document.getElementById('dupHint').textContent =
+    T.dup_template + ': ' + name + (year ? ' · ' + year : '');
+  document.getElementById('dup_year').value = year || '';
+  document.getElementById('dup_qty').value = qty || 1;
+  openModal('dupModal');
+}
+
+// ── AJAX helpers ──────────────────────────────────────────────────────────────
+
+function highlightCard(card) {
+  // Remove highlight from any previously highlighted cards
+  document.querySelectorAll('.card.highlight').forEach(function(c) {
+    c.classList.remove('highlight');
+  });
+  void card.offsetWidth; // force reflow
+  card.classList.add('highlight');
+  setTimeout(function() {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+  // Clean up class after animation completes
+  setTimeout(function() {
+    card.classList.remove('highlight');
+  }, 2100);
+}
+
+// ── Update location datalist with new locations from cards ─────────────────
+function refreshLocationList() {
+  var dl = document.getElementById('locationList');
+  if (!dl) return;
+  var locs = new Set();
+  document.querySelectorAll('.card').forEach(function(c) {
+    var loc = (c.dataset.location || '').trim();
+    if (loc) locs.add(loc);
+  });
+  var sorted = Array.from(locs).sort(function(a, b) { return a.localeCompare(b); });
+  dl.innerHTML = sorted.map(function(l) { return '<option value="' + l.replace(/"/g, '&quot;') + '">'; }).join('');
+}
+
+function refreshPurchasedAtList() {
+  var dl = document.getElementById('purchasedAtList');
+  if (!dl) return;
+  var vals = new Set();
+  document.querySelectorAll('.card').forEach(function(c) {
+    var v = (c.dataset.purchased_at || '').trim();
+    if (v) vals.add(v);
+  });
+  var sorted = Array.from(vals).sort(function(a, b) { return a.localeCompare(b); });
+  dl.innerHTML = sorted.map(function(v) { return '<option value="' + v.replace(/"/g, '&quot;') + '">'; }).join('');
+}
+
+function refreshRegionList() {
+  var dl = document.getElementById('regionList');
+  if (!dl) return;
+  var vals = new Set();
+  document.querySelectorAll('.card').forEach(function(c) {
+    var v = (c.dataset.region || '').trim();
+    if (v) vals.add(v);
+  });
+  var sorted = Array.from(vals).sort(function(a, b) { return a.localeCompare(b); });
+  dl.innerHTML = sorted.map(function(v) { return '<option value="' + v.replace(/"/g, '&quot;') + '">'; }).join('');
+}
+
+function wineIcon(type) {
+  if (type === 'Schaumwein') return '<i class="mdi mdi-glass-flute"></i>';
+  return '<i class="mdi mdi-glass-wine"></i>';
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(s));
+  return d.innerHTML;
+}
+
+function renderCard(w) {
+  var stars = '';
+  if (w.rating) {
+    stars = '<div class="stars">' + '<i class="mdi mdi-star"></i>'.repeat(w.rating) + '<i class="mdi mdi-star-outline"></i>'.repeat(5 - w.rating) + '</div>';
+  }
+  var extra = '';
+  if (w.price) extra += '<span class="price">' + escapeHtml(CURRENCY) + ' ' + Number(w.price).toFixed(2) + '</span>';
+  if (w.drink_from || w.drink_until) extra += '<span class="drink-window"><i class="mdi mdi-calendar-range"></i> ' + (w.drink_from || '?') + '-' + (w.drink_until || '?') + '</span>';
+  if (w.grape) extra += '<span><i class="mdi mdi-fruit-grapes"></i> ' + escapeHtml(w.grape) + '</span>';
+  if (w.location) extra += '<span><i class="mdi mdi-map-marker"></i> ' + escapeHtml(w.location) + '</span>';
+  if (w.vivino_id) extra += '<a class="card-vivino-link" href="https://www.vivino.com/w/' + encodeURIComponent(w.vivino_id) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Vivino"><i class="mdi mdi-open-in-new"></i> Vivino</a>';
+
+  var imgHtml = w.image
+    ? '<img src="' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '" alt="' + escapeHtml(w.name) + '" loading="lazy">'
+    : wineIcon(w.type);
+
+  var notesHtml = w.notes ? '<div class="card-notes">' + escapeHtml(w.notes) + '</div>' : '';
+
+  var metaParts = '<span>' + (w.year || '') + '</span>';
+  if (w.producer) metaParts += '<span>' + escapeHtml(w.producer) + '</span>';
+  metaParts += '<span>' + (w.region ? escapeHtml(w.region) : '') + '</span>';
+
+  // Ribbon
+  var ribbonHtml = '';
+  if (w.quantity == 0) {
+    ribbonHtml = '<div class="ribbon ribbon-empty">' + (T.ribbon_empty || '') + '</div>';
+  } else if (w.type) {
+    var ribbonCls = w.type.toLowerCase().replace(/é/g,'e').replace(/ö/g,'oe');
+    ribbonHtml = '<div class="ribbon ribbon-' + ribbonCls + '">' + escapeHtml(T['wine_type_' + w.type] || w.type) + '</div>';
+  }
+
+  return ribbonHtml +
+    '<div class="card-img' + (w.image ? ' shimmer' : '') + '" onclick="cardImgClick(this)">' + imgHtml + '</div>' +
+    '<div class="qty-badge ' + (w.quantity > 0 ? 'has' : '') + '"' + (AUTH_READONLY ? '' : ' onclick="openQtyPopover(this, event)"') + '>' + w.quantity + ' ' + (w.quantity === 1 ? T.bottle_abbr : T.bottles_abbr) + '</div>' +
+    '<div class="card-body" onclick="viewFromCard(this)">' +
+      '<div class="card-name" title="' + escapeHtml(w.name) + '">' + escapeHtml(w.name) + '</div>' +
+      '<div class="card-meta">' + metaParts + '</div>' +
+      stars +
+      '<div class="card-extra">' + extra + '</div>' +
+      notesHtml +
+    '</div>' +
+    (AUTH_READONLY ? '' :
+    '<div class="card-actions">' +
+      '<button onclick="changeQty(this,-1)" title="' + T.btn_less + '" style="padding:.5rem .65rem">−</button>' +
+      '<span class="qty-display" style="flex:1;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--gold);font-weight:700;">' + w.quantity + '</span>' +
+      '<button onclick="changeQty(this,1)" title="' + T.btn_more + '" style="padding:.5rem .65rem">+</button>' +
+      '<button onclick="editFromCard(this)" title="' + T.btn_edit + '" style="border-left:1px solid var(--border)"><i class="mdi mdi-pencil"></i></button>' +
+      '<button onclick="dupFromCard(this)" title="' + T.btn_duplicate + '"><i class="mdi mdi-content-copy"></i></button>' +
+      '<button class="danger" title="' + T.btn_delete + '" onclick="deleteFromCard(this)"><i class="mdi mdi-delete"></i></button>' +
+    '</div>');
+}
+
+function updateCardData(card, w) {
+  card.dataset.name = w.name || '';
+  card.dataset.year = w.year || '';
+  card.dataset.type = w.type || '';
+  card.dataset.region = w.region || '';
+  card.dataset.quantity = w.quantity;
+  card.dataset.rating = w.rating || 0;
+  card.dataset.notes = w.notes || '';
+  card.dataset.image = w.image || '';
+  card.dataset.purchased_at = w.purchased_at || '';
+  card.dataset.price = w.price || '';
+  card.dataset.drink_from = w.drink_from || '';
+  card.dataset.drink_until = w.drink_until || '';
+  card.dataset.location = w.location || '';
+  card.dataset.grape = w.grape || '';
+  card.dataset.producer = w.producer || '';
+  card.dataset.alcohol_pct = w.alcohol_pct || '';
+  card.dataset.bottle_format = w.bottle_format || '0.75';
+  card.dataset.vivino_id = w.vivino_id || '';
+  card.classList.toggle('empty', w.quantity == 0);
+}
+
+function sortGrid() {
+  var grid = document.querySelector('.grid');
+  var cards = Array.from(grid.querySelectorAll('.card'));
+  cards.sort(function(a, b) {
+    var t = (a.dataset.type || '').localeCompare(b.dataset.type || '');
+    if (t !== 0) return t;
+    var n = (a.dataset.name || '').localeCompare(b.dataset.name || '');
+    if (n !== 0) return n;
+    return (parseInt(a.dataset.year) || 0) - (parseInt(b.dataset.year) || 0);
+  });
+  cards.forEach(function(c) { grid.appendChild(c); });
+}
+
+// ── Post-save callback for wineModal (index page: update card grid in-place) ──
+window._onWineSaved = function(data) {
+  var w = data.wine;
+  var card = document.querySelector('.card[data-id="' + w.id + '"]');
+  if (card) {
+    updateCardData(card, w);
+    card.innerHTML = renderCard(w);
+  } else {
+    card = document.createElement('div');
+    card.className = 'card' + (w.quantity == 0 ? ' empty' : '');
+    card.dataset.id = w.id;
+    updateCardData(card, w);
+    card.innerHTML = renderCard(w);
+    var grid = document.querySelector('.grid');
+    var emptyState = grid.querySelector('.empty-state');
+    if (emptyState) emptyState.remove();
+    grid.appendChild(card);
+  }
+  applyDrinkWindowWarning(card);
+  initImageShimmer(card);
+  ensureFilterTab(w.type);
+  refreshLocationList();
+  refreshPurchasedAtList();
+  refreshRegionList();
+  applyFilters();
+  sortGrid();
+  if (currentViewMode === 'table') renderTableView();
+  highlightCard(card);
+};
+
+// ── AJAX qty change ───────────────────────────────────────────────────────────
+
+function changeQty(el, delta) {
+  changeQtyCard(el.closest('.card'), delta);
+}
+
+function changeQtyCard(card, delta, isUndo) {
+  var id = card.dataset.id;
+  var d = card.dataset;
+  var oldQty = parseInt(d.quantity) || 0;
+  var newQty = Math.max(0, oldQty + delta);
+
+  var fd = new FormData();
+  fd.append('name', d.name);
+  fd.append('year', d.year);
+  fd.append('type', d.type);
+  fd.append('region', d.region);
+  fd.append('quantity', newQty);
+  fd.append('rating', d.rating);
+  fd.append('notes', d.notes);
+  fd.append('purchased_at', d.purchased_at);
+  fd.append('price', d.price);
+  fd.append('drink_from', d.drink_from);
+  fd.append('drink_until', d.drink_until);
+  fd.append('location', d.location);
+  fd.append('grape', d.grape);
+  fd.append('bottle_format', d.bottle_format || '0.75');
+  fd.append('vivino_id', d.vivino_id || '');
+  if (isUndo) fd.append('qty_undo', '1');
+
+  // Optimistic UI update
+  card.dataset.quantity = newQty;
+  card.querySelector('.qty-display').textContent = newQty;
+  card.querySelector('.qty-badge').textContent = newQty + ' ' + (newQty === 1 ? T.bottle_abbr : T.bottles_abbr);
+  card.querySelector('.qty-badge').classList.toggle('has', newQty > 0);
+  card.classList.toggle('empty', newQty == 0);
+  var tableRow = document.querySelector('#wineTable tr[data-card-id="' + id + '"]');
+  if (tableRow) {
+    tableRow.querySelector('.col-qty').textContent = newQty;
+    tableRow.classList.toggle('empty', newQty == 0);
+  }
+  applyFilters();
+
+  fetch(INGRESS + '/edit/' + id, {
+    method: 'POST', body: fd,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  });
+
+  if (isUndo) hideQtyUndoToast();
+  else if (newQty !== oldQty) showQtyUndoToast(id, newQty - oldQty);
+}
+
+// ── Qty undo toast ───────────────────────────────────────────────────────────
+
+var qtyUndoState = null;
+var qtyUndoTimer = null;
+
+function showQtyUndoToast(cardId, delta) {
+  var toast = document.getElementById('qtyUndoToast');
+  if (!toast) return;
+  qtyUndoState = { cardId: cardId, delta: delta };
+  document.getElementById('qtyUndoMsg').textContent =
+    delta < 0 ? T.toast_bottle_removed : T.toast_bottle_added;
+  toast.style.display = 'flex';
+  toast.style.opacity = '1';
+  clearTimeout(qtyUndoTimer);
+  qtyUndoTimer = setTimeout(hideQtyUndoToast, 5000);
+}
+
+function hideQtyUndoToast() {
+  var toast = document.getElementById('qtyUndoToast');
+  if (!toast) return;
+  clearTimeout(qtyUndoTimer);
+  toast.style.opacity = '0';
+  setTimeout(function() { toast.style.display = 'none'; }, 400);
+  qtyUndoState = null;
+}
+
+function undoQtyChange() {
+  if (!qtyUndoState) return;
+  var card = document.querySelector('.card[data-id="' + qtyUndoState.cardId + '"]');
+  if (card) changeQtyCard(card, -qtyUndoState.delta, true);
+  else hideQtyUndoToast();
+}
+
+// ── Qty popover (opened from the qty badge) ──────────────────────────────────
+
+var qtyPopoverCard = null;
+
+function openQtyPopover(el, ev) {
+  ev.stopPropagation();
+  var pop = document.getElementById('qtyPopover');
+  // Anchor can live in a card or in a table row referencing the card
+  var card = el.closest('.card');
+  if (!card) {
+    var row = el.closest('[data-card-id]');
+    card = row && document.querySelector('.card[data-id="' + row.dataset.cardId + '"]');
+  }
+  if (!card) return;
+  if (qtyPopoverCard === card && pop.style.display !== 'none') { closeQtyPopover(); return; }
+  qtyPopoverCard = card;
+  document.getElementById('qtyPopoverCount').textContent = card.dataset.quantity || '0';
+  pop.style.display = 'flex';
+  var r = el.getBoundingClientRect();
+  var pr = pop.getBoundingClientRect();
+  var left = Math.max(8, Math.min(r.left, window.innerWidth - pr.width - 8));
+  var top = r.bottom + 6;
+  if (top + pr.height > window.innerHeight - 8) top = r.top - pr.height - 6;
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
+function closeQtyPopover() {
+  var pop = document.getElementById('qtyPopover');
+  if (pop) pop.style.display = 'none';
+  qtyPopoverCard = null;
+}
+
+function qtyPopoverChange(delta) {
+  if (!qtyPopoverCard) return;
+  changeQtyCard(qtyPopoverCard, delta);
+  document.getElementById('qtyPopoverCount').textContent = qtyPopoverCard.dataset.quantity;
+}
+
+document.addEventListener('click', function(e) {
+  var pop = document.getElementById('qtyPopover');
+  if (pop && pop.style.display !== 'none' && !pop.contains(e.target)) closeQtyPopover();
+});
+window.addEventListener('scroll', closeQtyPopover, true);
+
+// ── AJAX duplicate ────────────────────────────────────────────────────────────
+
+document.getElementById('dupForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var form = this;
+  var id = form.dataset.wineId;
+  var fd = new FormData(form);
+
+  fetch(INGRESS + '/duplicate/' + id, {
+    method: 'POST', body: fd,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (!data.ok) return;
+    var w = data.wine;
+    var card = document.createElement('div');
+    card.className = 'card' + (w.quantity == 0 ? ' empty' : '');
+    card.dataset.id = w.id;
+    updateCardData(card, w);
+    card.innerHTML = renderCard(w);
+    // Insert after original card
+    var orig = document.querySelector('.card[data-id="' + id + '"]');
+    if (orig && orig.nextSibling) {
+      orig.parentNode.insertBefore(card, orig.nextSibling);
+    } else {
+      document.querySelector('.grid').appendChild(card);
+    }
+    applyDrinkWindowWarning(card);
+    initImageShimmer(card);
+    ensureFilterTab(w.type);
+    refreshLocationList();
+    refreshPurchasedAtList();
+    refreshRegionList();
+    closeModal('dupModal');
+    applyFilters();
+    sortGrid();
+    if (currentViewMode === 'table') renderTableView();
+    highlightCard(card);
+  });
+});
+
+// ── AJAX delete ───────────────────────────────────────────────────────────────
+
+document.getElementById('deleteForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var form = this;
+  var id = form.dataset.wineId;
+
+  fetch(INGRESS + '/delete/' + id, {
+    method: 'POST',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (!data.ok) return;
+    var card = document.querySelector('.card[data-id="' + id + '"]');
+    if (card) card.remove();
+    if (currentViewMode === 'table') renderTableView();
+    refreshLocationList();
+    refreshPurchasedAtList();
+    refreshRegionList();
+    closeModal('deleteModal');
+    // Show empty state if no cards left
+    var grid = document.querySelector('.grid');
+    if (!grid.querySelector('.card')) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div><img src="' + INGRESS + '/static/logo.png" alt="Wine Tracker" class="empty-state-logo"></div><p>' + T.empty_no_wines + '<br>' + T.empty_add_first + '</p></div>';
+    }
+  });
+});
+
+// Highlight newly added wine & scroll to it (for non-JS fallback / initial load)
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const newId = params.get('new');
+  if (!newId) return;
+  const card = document.querySelector('.card[data-id="' + newId + '"]');
+  if (!card) return;
+  highlightCard(card);
+  params.delete('new');
+  const clean = params.toString();
+  history.replaceState(null, '', window.location.pathname + (clean ? '?' + clean : ''));
+})();
+
+// Open edit modal if ?edit=ID is in URL
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var editId = params.get('edit');
+  if (!editId) return;
+  var card = document.querySelector('.card[data-id="' + editId + '"]');
+  if (card) editFromCard(card);
+  params.delete('edit');
+  var clean = params.toString();
+  history.replaceState(null, '', window.location.pathname + (clean ? '?' + clean : ''));
+})();
+
+// Sync quick-toggle button label/icon with persisted showEmpty preference
+(function() {
+  var icon = document.querySelector('#toggleEmptyBtn .mdi');
+  var label = document.querySelector('#toggleEmptyBtn .toggle-empty-label');
+  if (icon) icon.className = 'mdi ' + (showEmpty ? 'mdi-eye-off-outline' : 'mdi-eye-outline');
+  if (label) label.textContent = showEmpty ? T.toggle_empty_hide : T.toggle_empty_show;
+})();
+
+// Apply filters on initial load
+applyFilters();
+
+// Drink window warnings - reusable so it works after AJAX add/edit/duplicate
+function applyDrinkWindowWarning(root) {
+  var year = new Date().getFullYear();
+  // If root is a single .card element, wrap it; otherwise query all cards within root
+  var cards = root && root.classList && root.classList.contains('card')
+    ? [root]
+    : (root || document).querySelectorAll('.card');
+  cards.forEach(function(card) {
+    var until = parseInt(card.dataset.drink_until);
+    var span = card.querySelector('.drink-window');
+    if (!span) return;
+    // Reset previous state (important for edit)
+    span.classList.remove('expired', 'last-year');
+    var oldWarn = span.querySelector('.drink-warn');
+    if (oldWarn) oldWarn.remove();
+    if (!until) return;
+    var cls;
+    if (until < year) {
+      cls = 'expired';
+    } else if (until === year) {
+      cls = 'last-year';
+    } else {
+      return;
+    }
+    span.classList.add(cls);
+    var icon = document.createElement('i');
+    icon.className = 'mdi mdi-alert drink-warn';
+    icon.title = cls === 'expired' ? 'Past drink window' : 'Last year to drink';
+    span.appendChild(icon);
+  });
+}
+applyDrinkWindowWarning();
+
+// Shimmer / skeleton loading - reveal images with fade-in once loaded
+function initImageShimmer(container) {
+  (container || document).querySelectorAll('.card-img img:not(.loaded)').forEach(function(img) {
+    if (img.complete && img.naturalHeight > 0) {
+      img.classList.add('loaded');
+      img.parentElement.classList.remove('shimmer');
+    } else {
+      img.addEventListener('load', function() {
+        img.classList.add('loaded');
+        img.parentElement.classList.remove('shimmer');
+      });
+      img.addEventListener('error', function() {
+        img.parentElement.classList.remove('shimmer');
+      });
+    }
+  });
+}
+initImageShimmer();
+
+// Open edit modal from URL parameter (e.g., from deep links)
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var editId = params.get('edit');
+  if (editId) {
+    // Remove ?edit= from URL to prevent re-opening on refresh
+    history.replaceState(null, '', window.location.pathname);
+    fetch(INGRESS + '/api/wine/' + encodeURIComponent(editId))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          openWineModal(data.wine.id, data.wine);
+        }
+      });
+  }
+})();
+
+// ── Restore saved view mode on page load ──────────────────────────────────────
+(function() {
+  var saved = localStorage.getItem('wineViewMode') || 'cards';
+  // Always sync the settings modal radio buttons to the persisted mode
+  document.querySelectorAll('.view-mode-radio input[type="radio"]').forEach(function(r) {
+    r.checked = (r.value === saved);
+  });
+  if (saved !== 'cards') {
+    setViewMode(saved);
+  }
+})();
+
+</script>
+<script src="{{ ingress }}/static/filter-advanced.js"></script>
+
+{% include '_chat_panel.html' %}
+{% if not auth_readonly %}<button class="fab" onclick="openWineModal()" title="{{ t.btn_add_wine }}"><i class="mdi mdi-plus"></i></button>{% endif %}
+
+<nav class="bottom-tab-bar">
+  <a class="tab-item active" href="{{ ingress }}/">
+    <i class="mdi mdi-bottle-wine"></i><span>{{ t.nav_cellar }}</span>
+  </a>
+  {% if ai_enabled %}
+  <a class="tab-item" href="{{ ingress }}/chat">
+    <i class="mdi mdi-chat"></i><span>{{ t.chat_title }}</span>
+  </a>
+  {% endif %}
+  <a class="tab-item" href="{{ ingress }}/timeline">
+    <i class="mdi mdi-timeline-text-outline"></i><span>{{ t.timeline }}</span>
+  </a>
+  <a class="tab-item" href="{{ ingress }}/stats">
+    <i class="mdi mdi-chart-bar"></i><span>{{ t.stats_title }}</span>
+  </a>
+</nav>
+
+</body>
+</html>

@@ -1,0 +1,412 @@
+{% if ai_enabled %}
+<!-- ═══════════════ WINE SOMMELIER CHAT ═══════════════ -->
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <span><i class="mdi mdi-chat"></i> {{ t.chat_title }}</span>
+    <div style="display:flex;gap:4px;align-items:center;">
+      <button class="chat-header-btn" onclick="toggleChatSessionList()" title="{{ t.chat_history }}"><i class="mdi mdi-history"></i></button>
+      <button class="chat-header-btn" onclick="startNewChatSession()" title="{{ t.chat_new }}"><i class="mdi mdi-plus"></i></button>
+      <button class="chat-close" onclick="toggleChatPanel()">&times;</button>
+    </div>
+  </div>
+  <!-- Session list overlay -->
+  <div class="chat-session-list" id="chatSessionList" style="display:none;">
+    <div class="chat-session-list-header">
+      <span><i class="mdi mdi-history"></i> {{ t.chat_history }}</span>
+      <button class="chat-close" onclick="toggleChatSessionList()">&times;</button>
+    </div>
+    <div class="chat-session-list-body" id="chatSessionListBody"></div>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-welcome">
+      <img src="{{ ingress }}/static/logo.png" alt="Wine Tracker" style="width: 48px; height: 48px; opacity: .7;">
+      <p>{{ t.chat_welcome }}</p>
+    </div>
+  </div>
+  <div class="chat-input-wrap">
+    <div id="chatImagePreview" class="chat-image-preview" style="display:none">
+      <img id="chatImageThumb" src="" alt="">
+      <button class="chat-image-remove" onclick="removeChatImage()" title="{{ t.chat_remove_image }}">&times;</button>
+    </div>
+    <div class="chat-input-row">
+      <button class="chat-upload-btn" onclick="document.getElementById('chatImageInput').click()" title="{{ t.chat_upload_image }}">
+        <i class="mdi mdi-camera"></i>
+      </button>
+      <input type="file" id="chatImageInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="previewChatImage(this)">
+      <input type="text" id="chatInput" placeholder="{{ t.chat_placeholder }}"
+             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}">
+      <button class="chat-send" id="chatSendBtn" onclick="sendChatMessage()" title="{{ t.chat_send }}">
+        <i class="mdi mdi-send"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script>
+// ── Wine Sommelier Chat ──────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+    marked.setOptions({breaks: true, gfm: true});
+    // Sanitize the rendered HTML; allow the app-internal wine: link scheme
+    return DOMPurify.sanitize(marked.parse(text), {
+      ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|wine):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+    });
+  }
+  // Fallback if marked/DOMPurify didn't load
+  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+var _chatSessionId = null;
+var _chatOpen = false;
+var _chatSending = false;
+var _chatSessionListOpen = false;
+var _chatImageFile = null;
+
+function _isChatRecordingEnabled() {
+  return localStorage.getItem('chatRecording') !== '0';
+}
+
+function _updateChatHistoryButtons() {
+  var enabled = _isChatRecordingEnabled();
+  var btns = document.querySelectorAll('.chat-header-btn');
+  btns.forEach(function(btn) { btn.style.display = enabled ? '' : 'none'; });
+}
+
+function _adjustChatViewport() {
+  var panel = document.getElementById('chatPanel');
+  if (!panel || !_chatOpen) return;
+  if (window.innerWidth <= 600) {
+    var vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    panel.style.height = vh + 'px';
+    panel.style.maxHeight = vh + 'px';
+  } else {
+    panel.style.height = '';
+    panel.style.maxHeight = '';
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', _adjustChatViewport);
+}
+window.addEventListener('resize', _adjustChatViewport);
+
+function toggleChatPanel() {
+  // On mobile, navigate to full chat page instead of flyover
+  if (window.innerWidth <= 600 && !_chatOpen) {
+    window.location.href = INGRESS + '/chat';
+    return;
+  }
+  _chatOpen = !_chatOpen;
+  var panel = document.getElementById('chatPanel');
+  panel.classList.toggle('open', _chatOpen);
+  document.getElementById('chatFab').classList.toggle('active', _chatOpen);
+  document.body.classList.toggle('no-scroll', _chatOpen);
+  if (_chatOpen) {
+    _adjustChatViewport();
+    _updateChatHistoryButtons();
+    // Load most recent session on first open (only if recording enabled)
+    if (!_chatSessionId && _isChatRecordingEnabled()) {
+      loadMostRecentSession();
+    }
+    document.getElementById('chatInput').focus();
+    scrollChatBottom();
+  } else {
+    panel.style.height = '';
+    panel.style.maxHeight = '';
+    // Close session list if open
+    if (_chatSessionListOpen) toggleChatSessionList();
+  }
+}
+
+function scrollChatBottom() {
+  var el = document.getElementById('chatMessages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendChatMessage(role, text, isHtml) {
+  var container = document.getElementById('chatMessages');
+  // Remove welcome message on first message
+  var welcome = container.querySelector('.chat-welcome');
+  if (welcome) welcome.remove();
+
+  var div = document.createElement('div');
+  div.className = 'chat-msg chat-msg-' + role;
+
+  var bubble = document.createElement('div');
+  bubble.className = 'chat-bubble';
+  if (role === 'assistant' || isHtml) {
+    bubble.innerHTML = role === 'assistant' ? renderMarkdown(text) : text;
+  } else {
+    bubble.textContent = text;
+  }
+
+  div.appendChild(bubble);
+  container.appendChild(div);
+  scrollChatBottom();
+  return bubble;
+}
+
+function appendChatLoading() {
+  var container = document.getElementById('chatMessages');
+  var div = document.createElement('div');
+  div.className = 'chat-msg chat-msg-assistant';
+  div.id = 'chatLoading';
+
+  var bubble = document.createElement('div');
+  bubble.className = 'chat-bubble chat-bubble-loading';
+  bubble.innerHTML = '<span class="chat-dots"><span>.</span><span>.</span><span>.</span></span>';
+
+  div.appendChild(bubble);
+  container.appendChild(div);
+  scrollChatBottom();
+}
+
+function removeChatLoading() {
+  var el = document.getElementById('chatLoading');
+  if (el) el.remove();
+}
+
+function clearChatMessages() {
+  var container = document.getElementById('chatMessages');
+  container.innerHTML = '<div class="chat-welcome">'
+    + '<img src="' + INGRESS + '/static/logo.png" alt="Wine Tracker" style="width: 48px; height: 48px; opacity: .7;">'
+    + '<p>' + (T.chat_welcome || '') + '</p></div>';
+}
+
+function loadMostRecentSession() {
+  fetch(INGRESS + '/api/chat/sessions')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok && data.sessions.length > 0) {
+        var s = data.sessions[0];
+        var age = Date.now() - new Date(s.updated).getTime();
+        if (age < 3600000) {
+          loadChatSession(s.id);
+        }
+      }
+    });
+}
+
+function loadChatSession(sessionId) {
+  fetch(INGRESS + '/api/chat/sessions/' + sessionId)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) return;
+      _chatSessionId = sessionId;
+      clearChatMessages();
+      if (data.messages && data.messages.length > 0) {
+        data.messages.forEach(function(msg) {
+          if (msg.image_path && msg.role === 'user') {
+            appendChatMessage(msg.role, '<img class="chat-msg-thumb" src="' + INGRESS + '/uploads/' + encodeURI(msg.image_path) + '" alt="">\n' + escapeHtmlChat(msg.content), true);
+          } else {
+            appendChatMessage(msg.role, msg.content);
+          }
+        });
+      }
+      // Close session list if open
+      if (_chatSessionListOpen) toggleChatSessionList();
+    });
+}
+
+function startNewChatSession() {
+  _chatSessionId = null;
+  clearChatMessages();
+  document.getElementById('chatInput').focus();
+  // Close session list if open
+  if (_chatSessionListOpen) toggleChatSessionList();
+}
+
+function toggleChatSessionList() {
+  _chatSessionListOpen = !_chatSessionListOpen;
+  var list = document.getElementById('chatSessionList');
+  list.style.display = _chatSessionListOpen ? 'flex' : 'none';
+  if (_chatSessionListOpen) {
+    loadChatSessionList();
+  }
+}
+
+function loadChatSessionList() {
+  var body = document.getElementById('chatSessionListBody');
+  body.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);"><i class="mdi mdi-loading mdi-spin"></i></div>';
+  fetch(INGRESS + '/api/chat/sessions')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) return;
+      if (data.sessions.length === 0) {
+        body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:.9rem;line-height:1.5;">' + (T.chat_no_sessions || 'No conversations yet') + '</div>';
+        return;
+      }
+      var html = '';
+      data.sessions.forEach(function(s) {
+        var isActive = s.id === _chatSessionId;
+        var title = s.title || (T.chat_new || 'New chat');
+        var dateStr = '';
+        if (s.updated) {
+          var d = new Date(s.updated);
+          dateStr = d.toLocaleDateString('{{ lang }}', {day: '2-digit', month: '2-digit', year: 'numeric'});
+        }
+        html += '<div class="chat-session-item' + (isActive ? ' active' : '') + '" onclick="loadChatSession(' + s.id + ')">';
+        html += '<div class="chat-session-item-icon"><i class="mdi mdi-chat-outline"></i></div>';
+        html += '<div class="chat-session-item-info">';
+        html += '<div class="chat-session-item-title">' + escapeHtmlChat(title) + '</div>';
+        var msgLabel = s.message_count === 1 ? (T.chat_message || 'message') : (T.chat_messages || 'messages');
+        html += '<div class="chat-session-item-date">' + escapeHtmlChat(dateStr) + ' · ' + s.message_count + ' ' + msgLabel + '</div>';
+        html += '</div>';
+        if (!AUTH_READONLY) {
+          html += '<button class="chat-session-delete" onclick="event.stopPropagation();deleteChatSession(' + s.id + ')" title="' + (T.chat_delete || 'Delete chat') + '"><i class="mdi mdi-delete-outline"></i></button>';
+        }
+        html += '</div>';
+      });
+      body.innerHTML = html;
+    });
+}
+
+function escapeHtmlChat(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(s));
+  return d.innerHTML;
+}
+
+function deleteChatSession(sessionId) {
+  if (!confirm(T.chat_delete_confirm || 'Really delete this chat?')) return;
+  fetch(INGRESS + '/api/chat/sessions/' + sessionId, {method: 'DELETE'})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        if (_chatSessionId === sessionId) {
+          _chatSessionId = null;
+          clearChatMessages();
+        }
+        loadChatSessionList();
+      }
+    });
+}
+
+function previewChatImage(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  _chatImageFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('chatImageThumb').src = e.target.result;
+    document.getElementById('chatImagePreview').style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeChatImage() {
+  _chatImageFile = null;
+  document.getElementById('chatImageInput').value = '';
+  document.getElementById('chatImagePreview').style.display = 'none';
+  document.getElementById('chatImageThumb').src = '';
+}
+
+function sendChatMessage() {
+  if (_chatSending) return;
+  var input = document.getElementById('chatInput');
+  var text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  _chatSending = true;
+  document.getElementById('chatSendBtn').disabled = true;
+
+  // Show user message with optional image thumbnail
+  var thumbSrc = _chatImageFile ? document.getElementById('chatImageThumb').src : null;
+  if (thumbSrc) {
+    appendChatMessage('user', '<img class="chat-msg-thumb" src="' + thumbSrc + '" alt="">\n' + escapeHtmlChat(text), true);
+  } else {
+    appendChatMessage('user', text);
+  }
+  appendChatLoading();
+
+  var T = window.T || {};
+  var chatRecOn = _isChatRecordingEnabled();
+
+  var editWines = localStorage.getItem('chatEditWines') === '1';
+  var fetchOpts = {method: 'POST'};
+  if (_chatImageFile) {
+    var fd = new FormData();
+    fd.append('message', text);
+    fd.append('image', _chatImageFile);
+    if (chatRecOn && _chatSessionId) fd.append('session_id', _chatSessionId);
+    if (!chatRecOn) fd.append('save', 'false');
+    if (editWines) fd.append('edit_wines', 'true');
+    fetchOpts.body = fd;
+    removeChatImage();
+  } else {
+    var payload = {message: text};
+    if (chatRecOn && _chatSessionId) {
+      payload.session_id = _chatSessionId;
+    }
+    if (!chatRecOn) {
+      payload.save = false;
+    }
+    if (editWines) payload.edit_wines = true;
+    fetchOpts.headers = {'Content-Type': 'application/json'};
+    fetchOpts.body = JSON.stringify(payload);
+  }
+
+  fetch(INGRESS + '/api/chat', fetchOpts)
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    removeChatLoading();
+    if (data.ok) {
+      appendChatMessage('assistant', data.response);
+      // Track the session ID returned by the server (only when recording)
+      if (data.session_id && _isChatRecordingEnabled()) {
+        _chatSessionId = data.session_id;
+      }
+      // Show wine action confirmation
+      if (data.wine_action) {
+        var w = data.wine_action;
+        var label = w.name + (w.year ? ' ' + w.year : '');
+        var icon = 'mdi-check-circle';
+        var msg = T.chat_wine_added || 'added to cellar';
+        var cssClass = 'chat-wine-added';
+        if (w.action === 'edited') {
+          msg = T.chat_wine_edited || 'updated';
+        } else if (w.action === 'deleted') {
+          icon = 'mdi-delete-check';
+          msg = T.chat_wine_deleted || 'removed from cellar';
+          cssClass = 'chat-wine-deleted';
+        }
+        var linkHtml = w.action === 'deleted'
+          ? escapeHtmlChat(label)
+          : '<a href="wine:' + w.id + '">' + escapeHtmlChat(label) + '</a>';
+        appendChatMessage('assistant',
+          '<div class="' + cssClass + '">'
+          + '<i class="mdi ' + icon + '"></i> '
+          + linkHtml + ' ' + msg
+          + '</div>', true);
+      }
+    } else {
+      appendChatMessage('assistant', T.chat_error || 'Error getting response. Please try again.');
+    }
+  })
+  .catch(function() {
+    removeChatLoading();
+    appendChatMessage('assistant', T.chat_error || 'Error getting response. Please try again.');
+  })
+  .finally(function() {
+    _chatSending = false;
+    document.getElementById('chatSendBtn').disabled = false;
+    document.getElementById('chatInput').focus();
+  });
+}
+
+// Handle wine: links in chat messages - open view modal in-place
+document.getElementById('chatPanel').addEventListener('click', function(e) {
+  var link = e.target.closest('a[href^="wine:"]');
+  if (!link) return;
+  e.preventDefault();
+  var wineId = link.getAttribute('href').replace('wine:', '');
+  fetch(INGRESS + '/api/wine/' + encodeURIComponent(wineId))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) openViewModal(data.wine.id, data.wine);
+    });
+});
+</script>
+{% endif %}

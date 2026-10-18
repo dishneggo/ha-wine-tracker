@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css">
+<link rel="stylesheet" href="{{ ingress }}/static/style.css">
+<script>
+(function(){var p={{ user_prefs | tojson }};var any=false;for(var k in p){any=true;try{localStorage.setItem(k,p[k])}catch(e){}}window._serverPrefsEmpty=!any;var n=localStorage.getItem('wine-theme-name')||'homeassistant';if(n&&n!=='classic')document.documentElement.setAttribute('data-theme',n);var s=localStorage.getItem('wine-theme')||'system';var e=s==='system'?(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'):s;if(e==='light')document.documentElement.classList.add('light');})();
+</script>
+<title>{{ t.chat_title }} - Wine Tracker</title>
+</head>
+<body class="chat-page">
+
+<header>
+  <a class="nav-brand" href="{{ ingress }}/" style="display:flex"><img src="{{ ingress }}/static/logo.png" alt="Wine Tracker" class="nav-logo"></a>
+  <nav class="nav-links">
+    <a class="nav-link" href="{{ ingress }}/">{{ t.nav_cellar }}</a>
+    <a class="nav-link" href="{{ ingress }}/timeline">{{ t.timeline }}</a>
+    <a class="nav-link" href="{{ ingress }}/stats">{{ t.stats_title }}</a>
+  </nav>
+  <button class="nav-hamburger" onclick="toggleNavMenu(event)" aria-label="Menu"><i class="mdi mdi-menu"></i></button>
+  <div class="nav-menu" id="navMenu">
+    <a href="{{ ingress }}/" class="nav-menu-item">{{ t.nav_cellar }}</a>
+    <a href="{{ ingress }}/timeline" class="nav-menu-item">{{ t.timeline }}</a>
+    <a href="{{ ingress }}/stats" class="nav-menu-item">{{ t.stats_title }}</a>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="chat-header-actions">
+    <button class="chat-header-btn" onclick="toggleChatSidebar()" title="{{ t.chat_history }}"><i class="mdi mdi-history"></i></button>
+    <button class="chat-header-btn" onclick="startNewChatSession()" title="{{ t.chat_new }}"><i class="mdi mdi-plus"></i></button>
+  </div>
+  <button class="theme-toggle" onclick="openModal('settingsModal')" title="{{ t.settings_title }}"><i class="mdi mdi-cog"></i></button>
+</header>
+
+<!-- Full page chat content -->
+<div class="chat-fullpage">
+  <!-- Session sidebar -->
+  <div class="chat-fullpage-sidebar" id="chatSidebar">
+    <div class="chat-sidebar-header">
+      <span>{{ t.chat_history }}</span>
+      <button class="chat-header-btn chat-sidebar-close" onclick="toggleChatSidebar()" title="{{ t.close or 'Close' }}"><i class="mdi mdi-close"></i></button>
+    </div>
+    <div class="chat-sidebar-body" id="chatSidebarBody"></div>
+  </div>
+  <div class="chat-fullpage-main">
+    <div class="chat-fullpage-toolbar">
+      <button class="chat-header-btn" onclick="toggleChatSidebar()" title="{{ t.chat_history }}"><i class="mdi mdi-history"></i></button>
+      <button class="chat-header-btn" onclick="startNewChatSession()" title="{{ t.chat_new }}"><i class="mdi mdi-plus"></i></button>
+    </div>
+    <div class="chat-fullpage-messages" id="chatMessages">
+      <div class="chat-welcome">
+        <img src="{{ ingress }}/static/logo.png" alt="Wine Tracker" style="width:48px;height:48px;opacity:.7">
+        <p>{{ t.chat_welcome }}</p>
+      </div>
+    </div>
+    <div class="chat-fullpage-input">
+      <div class="chat-image-preview" id="chatImagePreview" style="display:none">
+        <img id="chatImageThumb" src="" alt="">
+        <button class="chat-image-remove" onclick="removeChatImage()" title="{{ t.chat_remove_image }}">&times;</button>
+      </div>
+      <div class="chat-input-row">
+        <button class="chat-upload-btn" onclick="document.getElementById('chatImageInput').click()" title="{{ t.chat_upload_image }}">
+          <i class="mdi mdi-camera"></i>
+        </button>
+        <input type="file" id="chatImageInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="previewChatImage(this)">
+        <input type="text" id="chatInput" placeholder="{{ t.chat_placeholder }}"
+               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}">
+        <button class="chat-send" id="chatSendBtn" onclick="sendChatMessage()" title="{{ t.chat_send }}">
+          <i class="mdi mdi-send"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom tab bar for mobile -->
+<nav class="bottom-tab-bar">
+  <a href="{{ ingress }}/" class="tab-item">
+    <i class="mdi mdi-bottle-wine"></i>
+    <span>{{ t.nav_cellar }}</span>
+  </a>
+  <a href="{{ ingress }}/chat" class="tab-item active">
+    <i class="mdi mdi-chat"></i>
+    <span>{{ t.chat_title }}</span>
+  </a>
+  <a href="{{ ingress }}/timeline" class="tab-item">
+    <i class="mdi mdi-timeline-text-outline"></i>
+    <span>{{ t.timeline }}</span>
+  </a>
+  <a href="{{ ingress }}/stats" class="tab-item">
+    <i class="mdi mdi-chart-bar"></i>
+    <span>{{ t.stats_title }}</span>
+  </a>
+</nav>
+
+<!-- ═══════════════ WINE VIEW MODAL ═══════════════ -->
+{% include '_wine_view_modal.html' %}
+{% include '_wine_view_extras.html' %}
+
+{% include '_settings_modal.html' %}
+
+<!-- ═══════════════ LIGHTBOX ═══════════════ -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+  <img id="lightboxImg" src="" alt="{{ t.lightbox_alt }}">
+</div>
+
+<script src="{{ ingress }}/static/theme.js"></script>
+<script>
+var INGRESS = '{{ ingress }}';
+var T = {{ t | tojson }};
+var CURRENCY = '{{ currency }}';
+var AUTH_READONLY = {{ auth_readonly | tojson }};
+</script>
+{% include '_wine_edit_modal.html' %}
+<script>
+// ── Hamburger Nav Menu ──────────────────────────────────────────────────────
+function toggleNavMenu(e) {
+  if (e) e.stopPropagation();
+  var menu = document.getElementById('navMenu');
+  menu.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  var menu = document.getElementById('navMenu');
+  if (menu && menu.classList.contains('open') && !e.target.closest('.nav-hamburger') && !e.target.closest('.nav-menu')) {
+    menu.classList.remove('open');
+  }
+});
+
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if (id === 'settingsModal') { updateThemeSegmented(); updateThemeDropdown(); initChatRecordingToggle(); }
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+// Close modal on overlay click (skip wineModal - handled by _wine_edit_modal.html)
+document.querySelectorAll('.modal-overlay').forEach(function(el) {
+  el.addEventListener('click', function(e) {
+    if (e.target !== el) return;
+    if (el.id === 'wineModal') return;
+    closeModal(el.id);
+  });
+});
+
+// ESC closes modals, lightbox & nav menu (wineModal: guard if dirty)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeLightbox();
+    var navMenu = document.getElementById('navMenu');
+    if (navMenu) navMenu.classList.remove('open');
+    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
+      if (el.id === 'wineModal') {
+        tryCloseWineModal();
+      } else {
+        el.classList.remove('open');
+      }
+    });
+  }
+});
+
+// ── View Modal functions ──────────────────────────────────
+function escapeHtml(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(s));
+  return d.innerHTML;
+}
+
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+}
+
+var BOTTLE_FORMATS = {
+  0.1875: 'Piccolo (0.1875 l)', 0.375: 'Demi (0.375 l)', 0.75: 'Standard (0.75 l)',
+  1.5: 'Magnum (1.5 l)', 3: 'Double Magnum (3 l)', 4.5: 'J\u00e9roboam (4.5 l)',
+  6: 'Imp\u00e9rial (6 l)', 9: 'Salmanazar (9 l)', 12: 'Balthazar (12 l)',
+  15: 'Nebukadnezar (15 l)'
+};
+
+function viewRow(icon, label, value) {
+  return '<div class="view-row"><i class="mdi ' + icon + '"></i>'
+       + '<span class="view-label">' + escapeHtml(label) + '</span>'
+       + '<span class="view-value">' + escapeHtml(String(value)) + '</span></div>';
+}
+
+function openViewModal(id, wine) {
+  var w = wine || {};
+  window._viewWineId = id;
+  window._viewWineData = w;
+
+  document.getElementById('viewModalTitle').textContent = T.modal_view_title || 'Wine details';
+
+  var html = '';
+
+  var ribbonHtml = '';
+  if (w.type) {
+    var typeKey = 'wine_type_' + w.type;
+    var typeLabel = T[typeKey] || w.type;
+    ribbonHtml = '<span class="ribbon ribbon-' + escapeHtml(w.type.toLowerCase().replace(/[éö]/g, function(c){return c==='é'?'e':'oe';})) + '">' + escapeHtml(typeLabel) + '</span>';
+  }
+  if (w.image) {
+    html += '<div class="view-photo-panel" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
+          + ribbonHtml
+          + '<img src="' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '" alt="' + escapeHtml(w.name) + '">'
+          + '</div>';
+  } else if (ribbonHtml) {
+    html += '<div class="view-photo-panel view-no-image">' + ribbonHtml + '</div>';
+  }
+
+  html += '<div class="view-fields-panel">';
+  html += '<div class="view-name">' + escapeHtml(w.name) + '</div>';
+
+  var meta = [];
+  if (w.year) meta.push('<span>' + w.year + '</span>');
+  if (w.region) meta.push('<span>' + escapeHtml(w.region) + '</span>');
+  if (meta.length) html += '<div class="view-meta">' + meta.join('') + '</div>';
+
+  if (w.rating && w.rating > 0) {
+    var stars = '';
+    for (var i = 0; i < 5; i++) stars += '<i class="mdi ' + (i < w.rating ? 'mdi-star' : 'mdi-star-outline') + '"></i>';
+    html += '<div class="view-stars">' + stars + '</div>';
+  }
+
+  var details = '';
+  if (w.producer) details += viewRow('mdi-home-city-outline', T.label_producer || 'Producer', w.producer);
+  details += viewRow('mdi-bottle-wine', T.label_quantity || 'Quantity', w.quantity);
+  if (w.bottle_format && parseFloat(w.bottle_format) !== 0.75) {
+    var fmt = BOTTLE_FORMATS[parseFloat(w.bottle_format)] || w.bottle_format + ' l';
+    details += viewRow('mdi-ruler', T.label_bottle_format || 'Format', fmt);
+  }
+  if (w.grape) details += viewRow('mdi-fruit-grapes', T.label_grape || 'Grape', w.grape);
+  if (w.alcohol_pct) details += viewRow('mdi-percent-outline', T.label_alcohol_pct || 'Alcohol', w.alcohol_pct + '% vol');
+  if (w.purchased_at) details += viewRow('mdi-cart', T.label_purchased_at || 'Purchased at', w.purchased_at);
+  if (w.price) {
+    details += viewRow('mdi-cash', T.label_price || 'Price', CURRENCY + ' ' + Number(w.price).toFixed(2));
+  }
+  if (w.drink_from || w.drink_until) {
+    var window_str = (w.drink_from || '?') + ' \u2013 ' + (w.drink_until || '?');
+    details += viewRow('mdi-calendar-range', T.view_drink_window || 'Drink window', window_str);
+  }
+  if (w.location) details += viewRow('mdi-map-marker', T.label_location || 'Location', w.location);
+  if (w.vivino_id) {
+    details += '<div class="view-row"><i class="mdi mdi-open-in-new"></i>'
+             + '<span class="view-label">Vivino</span>'
+             + '<a href="https://www.vivino.com/w/' + w.vivino_id + '" target="_blank" rel="noopener" class="view-vivino-link view-value">vivino.com</a></div>';
+  }
+  if (details) html += '<div class="view-details">' + details + '</div>';
+
+  if (w.notes) html += '<div class="view-notes">' + escapeHtml(w.notes) + '</div>';
+
+  // Maturity graph, taste profile, food pairings
+  if (typeof buildWineExtrasHtml === 'function') {
+    html += buildWineExtrasHtml(w);
+  }
+
+  html += '<div class="view-actions">';
+  if (!AUTH_READONLY) {
+    html += '<button class="btn-submit" onclick="editFromView()">' + (T.btn_edit || 'Edit') + '</button>';
+  }
+  html += '</div>';
+  html += '</div>';
+
+  document.getElementById('viewModalBody').innerHTML = html;
+  openModal('viewModal');
+}
+
+function editFromView() {
+  closeModal('viewModal');
+  openWineModal(window._viewWineId, window._viewWineData);
+}
+</script>
+
+<!-- Chat JS -->
+<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script>
+function renderMarkdown(text) {
+  if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+    marked.setOptions({breaks: true, gfm: true});
+    // Sanitize the rendered HTML; allow the app-internal wine: link scheme
+    return DOMPurify.sanitize(marked.parse(text), {
+      ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|wine):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+    });
+  }
+  // Fallback if marked/DOMPurify didn't load
+  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+var _chatSessionId = null;
+var _chatSending = false;
+var _chatSidebarOpen = window.innerWidth > 768;
+
+function escapeHtmlChat(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(s));
+  return d.innerHTML;
+}
+
+function scrollChatBottom() {
+  var el = document.getElementById('chatMessages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendChatMessage(role, text, isHtml) {
+  var container = document.getElementById('chatMessages');
+  var welcome = container.querySelector('.chat-welcome');
+  if (welcome) welcome.remove();
+  var div = document.createElement('div');
+  div.className = 'chat-msg chat-msg-' + role;
+  var bubble = document.createElement('div');
+  bubble.className = 'chat-bubble';
+  if (role === 'assistant') {
+    bubble.innerHTML = renderMarkdown(text);
+  } else if (isHtml) {
+    bubble.innerHTML = text;
+  } else {
+    bubble.textContent = text;
+  }
+  div.appendChild(bubble);
+  container.appendChild(div);
+  scrollChatBottom();
+  return bubble;
+}
+
+function appendChatLoading() {
+  var container = document.getElementById('chatMessages');
+  var div = document.createElement('div');
+  div.className = 'chat-msg chat-msg-assistant';
+  div.id = 'chatLoading';
+  var bubble = document.createElement('div');
+  bubble.className = 'chat-bubble chat-bubble-loading';
+  bubble.innerHTML = '<span class="chat-dots"><span>.</span><span>.</span><span>.</span></span>';
+  div.appendChild(bubble);
+  container.appendChild(div);
+  scrollChatBottom();
+}
+
+function removeChatLoading() {
+  var el = document.getElementById('chatLoading');
+  if (el) el.remove();
+}
+
+function clearChatMessages() {
+  var container = document.getElementById('chatMessages');
+  container.innerHTML = '<div class="chat-welcome">'
+    + '<img src="' + INGRESS + '/static/logo.png" alt="Wine Tracker" style="width:48px;height:48px;opacity:.7">'
+    + '<p>' + (T.chat_welcome || '') + '</p></div>';
+}
+
+function toggleChatSidebar() {
+  _chatSidebarOpen = !_chatSidebarOpen;
+  var sidebar = document.getElementById('chatSidebar');
+  sidebar.classList.toggle('open', _chatSidebarOpen);
+  if (_chatSidebarOpen) {
+    loadChatSidebarList();
+  }
+}
+
+function loadChatSidebarList() {
+  var body = document.getElementById('chatSidebarBody');
+  body.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);"><i class="mdi mdi-loading mdi-spin"></i></div>';
+  fetch(INGRESS + '/api/chat/sessions')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) return;
+      if (data.sessions.length === 0) {
+        body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);">' + (T.chat_no_sessions || 'No conversations yet') + '</div>';
+        return;
+      }
+      var html = '';
+      data.sessions.forEach(function(s) {
+        var isActive = s.id === _chatSessionId;
+        var title = s.title || (T.chat_new || 'New chat');
+        var dateStr = '';
+        if (s.updated) {
+          var d = new Date(s.updated);
+          dateStr = d.toLocaleDateString('{{ lang }}', {day: '2-digit', month: '2-digit', year: 'numeric'});
+        }
+        var msgLabel = s.message_count === 1 ? (T.chat_message || 'message') : (T.chat_messages || 'messages');
+        html += '<div class="chat-session-item' + (isActive ? ' active' : '') + '" onclick="loadChatSession(' + s.id + ')">';
+        html += '<div class="chat-session-item-info">';
+        html += '<div class="chat-session-item-title">' + escapeHtmlChat(title) + '</div>';
+        html += '<div class="chat-session-item-date">' + escapeHtmlChat(dateStr) + ' · ' + s.message_count + ' ' + msgLabel + '</div>';
+        html += '</div>';
+        if (!AUTH_READONLY) {
+          html += '<button class="chat-session-delete" onclick="event.stopPropagation();deleteChatSession(' + s.id + ')" title="' + (T.chat_delete || 'Delete chat') + '"><i class="mdi mdi-delete-outline"></i></button>';
+        }
+        html += '</div>';
+      });
+      body.innerHTML = html;
+    });
+}
+
+function loadChatSession(sessionId) {
+  fetch(INGRESS + '/api/chat/sessions/' + sessionId)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) return;
+      _chatSessionId = sessionId;
+      clearChatMessages();
+      if (data.messages && data.messages.length > 0) {
+        data.messages.forEach(function(msg) {
+          if (msg.image_path && msg.role === 'user') {
+            appendChatMessage(msg.role, '<img class="chat-msg-thumb" src="' + INGRESS + '/uploads/' + encodeURI(msg.image_path) + '" alt="">\n' + escapeHtmlChat(msg.content), true);
+          } else {
+            appendChatMessage(msg.role, msg.content);
+          }
+        });
+      }
+      // Refresh sidebar to update active state
+      if (_chatSidebarOpen) loadChatSidebarList();
+      // On mobile, close sidebar after selection
+      if (window.innerWidth <= 768 && _chatSidebarOpen) toggleChatSidebar();
+    });
+}
+
+function startNewChatSession() {
+  _chatSessionId = null;
+  clearChatMessages();
+  document.getElementById('chatInput').focus();
+  // Refresh sidebar
+  if (_chatSidebarOpen) loadChatSidebarList();
+  // On mobile, close the history sidebar so the new chat is actually visible
+  if (window.innerWidth <= 768 && _chatSidebarOpen) toggleChatSidebar();
+}
+
+function deleteChatSession(sessionId) {
+  if (!confirm(T.chat_delete_confirm || 'Really delete this chat?')) return;
+  fetch(INGRESS + '/api/chat/sessions/' + sessionId, {method: 'DELETE'})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        if (_chatSessionId === sessionId) {
+          _chatSessionId = null;
+          clearChatMessages();
+        }
+        loadChatSidebarList();
+      }
+    });
+}
+
+var _chatImageFile = null;
+
+function previewChatImage(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  _chatImageFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('chatImageThumb').src = e.target.result;
+    document.getElementById('chatImagePreview').style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeChatImage() {
+  _chatImageFile = null;
+  document.getElementById('chatImageInput').value = '';
+  document.getElementById('chatImagePreview').style.display = 'none';
+  document.getElementById('chatImageThumb').src = '';
+}
+
+function sendChatMessage() {
+  if (_chatSending) return;
+  var input = document.getElementById('chatInput');
+  var text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  _chatSending = true;
+  document.getElementById('chatSendBtn').disabled = true;
+
+  // Show user message with optional image thumbnail
+  var thumbSrc = _chatImageFile ? document.getElementById('chatImageThumb').src : null;
+  if (thumbSrc) {
+    appendChatMessage('user', '<img class="chat-msg-thumb" src="' + thumbSrc + '" alt="">\n' + escapeHtmlChat(text), true);
+  } else {
+    appendChatMessage('user', text);
+  }
+  appendChatLoading();
+
+  var editWines = localStorage.getItem('chatEditWines') === '1';
+  var fetchOpts = {method: 'POST'};
+  if (_chatImageFile) {
+    var fd = new FormData();
+    fd.append('message', text);
+    fd.append('image', _chatImageFile);
+    if (_chatSessionId) fd.append('session_id', _chatSessionId);
+    if (editWines) fd.append('edit_wines', 'true');
+    fetchOpts.body = fd;
+    removeChatImage();
+  } else {
+    var payload = {message: text};
+    if (_chatSessionId) payload.session_id = _chatSessionId;
+    if (editWines) payload.edit_wines = true;
+    fetchOpts.headers = {'Content-Type': 'application/json'};
+    fetchOpts.body = JSON.stringify(payload);
+  }
+
+  fetch(INGRESS + '/api/chat', fetchOpts)
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    removeChatLoading();
+    if (data.ok) {
+      appendChatMessage('assistant', data.response);
+      if (data.session_id) {
+        _chatSessionId = data.session_id;
+      }
+      // Show wine action confirmation
+      if (data.wine_action) {
+        var w = data.wine_action;
+        var label = w.name + (w.year ? ' ' + w.year : '');
+        var icon = 'mdi-check-circle';
+        var msg = T.chat_wine_added || 'added to cellar';
+        var cssClass = 'chat-wine-added';
+        if (w.action === 'edited') {
+          msg = T.chat_wine_edited || 'updated';
+        } else if (w.action === 'deleted') {
+          icon = 'mdi-delete-check';
+          msg = T.chat_wine_deleted || 'removed from cellar';
+          cssClass = 'chat-wine-deleted';
+        }
+        var linkHtml = w.action === 'deleted'
+          ? escapeHtmlChat(label)
+          : '<a href="wine:' + w.id + '">' + escapeHtmlChat(label) + '</a>';
+        appendChatMessage('assistant',
+          '<div class="' + cssClass + '">'
+          + '<i class="mdi ' + icon + '"></i> '
+          + linkHtml + ' ' + msg
+          + '</div>', true);
+      }
+      // Refresh sidebar
+      if (_chatSidebarOpen) loadChatSidebarList();
+    } else {
+      appendChatMessage('assistant', T.chat_error || 'Error getting response. Please try again.');
+    }
+  })
+  .catch(function() {
+    removeChatLoading();
+    appendChatMessage('assistant', T.chat_error || 'Error getting response. Please try again.');
+  })
+  .finally(function() {
+    _chatSending = false;
+    document.getElementById('chatSendBtn').disabled = false;
+    document.getElementById('chatInput').focus();
+  });
+}
+
+// Handle wine: links in chat messages - open view modal in-place
+document.querySelector('.chat-fullpage').addEventListener('click', function(e) {
+  var link = e.target.closest('a[href^="wine:"]');
+  if (!link) return;
+  e.preventDefault();
+  var wineId = link.getAttribute('href').replace('wine:', '');
+  fetch(INGRESS + '/api/wine/' + encodeURIComponent(wineId))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) openViewModal(data.wine.id, data.wine);
+    });
+});
+
+// Load session from URL param or most recent on page load
+(function() {
+  var urlParams = new URLSearchParams(window.location.search);
+  var requestedSession = urlParams.get('session');
+  if (requestedSession) {
+    loadChatSession(parseInt(requestedSession));
+    if (_chatSidebarOpen) loadChatSidebarList();
+  } else {
+    fetch(INGRESS + '/api/chat/sessions')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok && data.sessions.length > 0) {
+          var s = data.sessions[0];
+          var age = Date.now() - new Date(s.updated).getTime();
+          if (age < 3600000) {
+            loadChatSession(s.id);
+          }
+        }
+        // Load sidebar list
+        if (_chatSidebarOpen) loadChatSidebarList();
+      });
+  }
+  document.getElementById('chatInput').focus();
+  // Initialize sidebar visibility
+  var sidebar = document.getElementById('chatSidebar');
+  sidebar.classList.toggle('open', _chatSidebarOpen);
+})();
+
+// ── Keyboard compensation (CSS --kb-inset) ──────────────────────────────────
+// The HA Ingress iframe does not propagate keyboard events, so we can't
+// measure the real on-screen keyboard height. We set --kb-inset to a rough
+// iOS estimate (keyboard + suggestion bar) on focus and reset on blur. The
+// CSS transition on the chat bottom-tab-bar makes the motion smooth.
+(function() {
+  var input = document.getElementById('chatInput');
+  if (!input) return;
+  // Tune this if the input sits too high (empty space) or too low (still under
+  // keyboard). iOS keyboard alone ≈ 291px, + suggestion bar ≈ 335px.
+  var KB_INSET_PX = 320;
+
+  input.addEventListener('focus', function() {
+    document.documentElement.style.setProperty('--kb-inset', KB_INSET_PX + 'px');
+  });
+  input.addEventListener('blur', function() {
+    document.documentElement.style.setProperty('--kb-inset', '0px');
+  });
+})();
+</script>
+</body>
+</html>

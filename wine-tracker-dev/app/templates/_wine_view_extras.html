@@ -1,0 +1,165 @@
+{# Shared JS helpers for maturity graph, taste profile, and food pairings in view modal #}
+<script>
+function buildMaturityGraph(w) {
+  var md = w.maturity_data;
+  if (!md || !md.youth || !md.maturity || !md.peak || !md.decline) return '';
+
+  var phases = [
+    { key: 'youth',    label: T.maturity_youth || 'Youth',    range: md.youth },
+    { key: 'maturity', label: T.maturity_maturity || 'Maturity', range: md.maturity },
+    { key: 'peak',     label: T.maturity_peak || 'Peak',      range: md.peak },
+    { key: 'decline',  label: T.maturity_decline || 'Decline', range: md.decline }
+  ];
+
+  var startYear = phases[0].range[0];
+  var endYear = phases[3].range[1];
+  var totalYears = endYear - startYear;
+  if (totalYears <= 0) return '';
+
+  var currentYear = new Date().getFullYear();
+
+  // SVG dimensions
+  var svgW = 400, svgH = 80;
+  var padL = 0, padR = 0;
+  var graphW = svgW - padL - padR;
+  var baseY = svgH - 2;
+  var peakY = 8;
+
+  // Map year to X
+  function yearToX(y) { return padL + ((y - startYear) / totalYears) * graphW; }
+
+  // Unique ID for gradient (avoid collisions when multiple graphs on page)
+  var uid = 'mg' + Math.random().toString(36).substr(2, 6);
+
+  // Build smooth gaussian-like bell curve with 4 key points:
+  // start (baseline) → peak center (top) → end (baseline)
+  // Using a simple symmetric bell shape that works for any time span
+  var x0 = yearToX(startYear);
+  var xPeakStart = yearToX(md.peak[0]);
+  var xPeakMid = yearToX((md.peak[0] + md.peak[1]) / 2);
+  var xPeakEnd = yearToX(md.peak[1]);
+  var x6 = yearToX(endYear);
+
+  var y0 = baseY;
+  var y6 = baseY;
+
+  // Single smooth bell curve: start → peak → end
+  // The curve vertex MUST be exactly at xPeakMid (center of peak phase)
+  var pathD = 'M' + x0.toFixed(1) + ',' + y0.toFixed(1);
+
+  // Rising side: from start to peak center
+  // CP1: horizontal exit from baseline, CP2: horizontal entry into peak (tangent = 0)
+  pathD += ' C' + (x0 + (xPeakMid - x0) * 0.5).toFixed(1) + ',' + y0.toFixed(1)
+         + ' ' + (xPeakMid - (xPeakMid - x0) * 0.15).toFixed(1) + ',' + peakY.toFixed(1)
+         + ' ' + xPeakMid.toFixed(1) + ',' + peakY.toFixed(1);
+
+  // Falling side: from peak center to end
+  // CP1: horizontal exit from peak (tangent = 0), CP2: horizontal entry into baseline
+  pathD += ' C' + (xPeakMid + (x6 - xPeakMid) * 0.15).toFixed(1) + ',' + peakY.toFixed(1)
+         + ' ' + (x6 - (x6 - xPeakMid) * 0.5).toFixed(1) + ',' + y6.toFixed(1)
+         + ' ' + x6.toFixed(1) + ',' + y6.toFixed(1);
+
+  // Filled area path (close along baseline)
+  var fillD = pathD + ' L' + x6.toFixed(1) + ',' + svgH + ' L' + x0.toFixed(1) + ',' + svgH + ' Z';
+
+  // Build gradient stops based on phase boundaries
+  // Opacity increases toward the peak and decreases after
+  var phaseOpacities = [0.2, 0.4, 0.7, 0.25];
+  var gradStops = '';
+  for (var p = 0; p < phases.length; p++) {
+    var isActive = currentYear >= phases[p].range[0] && currentYear <= phases[p].range[1];
+    var op = isActive ? Math.min(phaseOpacities[p] + 0.2, 0.9) : phaseOpacities[p];
+    var pctStart = ((phases[p].range[0] - startYear) / totalYears * 100).toFixed(1);
+    var pctEnd = ((phases[p].range[1] - startYear) / totalYears * 100).toFixed(1);
+    gradStops += '<stop offset="' + pctStart + '%" stop-color="var(--accent)" stop-opacity="' + op + '"/>';
+    gradStops += '<stop offset="' + pctEnd + '%" stop-color="var(--accent)" stop-opacity="' + op + '"/>';
+  }
+
+  // Today marker
+  var todayHtml = '';
+  if (currentYear >= startYear && currentYear <= endYear) {
+    var tx = yearToX(currentYear);
+    todayHtml = '<line x1="' + tx + '" y1="0" x2="' + tx + '" y2="' + svgH + '" stroke="var(--text)" stroke-width="1.5" stroke-dasharray="3,2"/>'
+              + '<text x="' + tx + '" y="' + (svgH - 2) + '" text-anchor="middle" font-size="8" fill="var(--text)" font-weight="600">' + escapeHtml(T.maturity_today || 'Today') + '</text>';
+  }
+
+  var svg = '<svg viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;">'
+          + '<defs>'
+          + '<linearGradient id="' + uid + '" x1="0%" y1="0%" x2="100%" y2="0%">'
+          + gradStops
+          + '</linearGradient>'
+          + '</defs>'
+          + '<path d="' + fillD + '" fill="url(#' + uid + ')"/>'
+          + '<path d="' + pathD + '" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".7"/>'
+          + todayHtml
+          + '</svg>';
+
+  // Labels below
+  var labels = '<div class="maturity-labels">';
+  for (var p = 0; p < phases.length; p++) {
+    var widthPct = ((phases[p].range[1] - phases[p].range[0]) / totalYears * 100);
+    var isActive = currentYear >= phases[p].range[0] && currentYear <= phases[p].range[1];
+    labels += '<div class="maturity-label' + (isActive ? ' active' : '') + '" style="width:' + widthPct + '%">'
+            + '<span class="maturity-label-name">' + escapeHtml(phases[p].label) + '</span>'
+            + '<span class="maturity-label-years">' + phases[p].range[0] + '-' + phases[p].range[1] + '</span>'
+            + '</div>';
+  }
+  labels += '</div>';
+
+  return '<div class="maturity-section">'
+       + '<h4><i class="mdi mdi-chart-bell-curve-cumulative"></i> ' + escapeHtml(T.maturity_phases || 'Maturity Phases') + '</h4>'
+       + '<div class="maturity-graph">' + svg + labels + '</div>'
+       + '</div>';
+}
+
+function buildTasteProfile(w) {
+  var tp = w.taste_profile;
+  if (!tp) return '';
+
+  var attrs = [
+    { key: 'body',      label: T.taste_body || 'Body' },
+    { key: 'tannin',    label: T.taste_tannin || 'Tannin' },
+    { key: 'acidity',   label: T.taste_acidity || 'Acidity' },
+    { key: 'sweetness', label: T.taste_sweetness || 'Sweetness' }
+  ];
+
+  var rows = '';
+  var hasData = false;
+  for (var i = 0; i < attrs.length; i++) {
+    var val = tp[attrs[i].key];
+    if (val == null || val === undefined) continue;
+    hasData = true;
+    var pct = (val / 5 * 100);
+    rows += '<div class="taste-row">'
+          + '<span class="taste-label">' + escapeHtml(attrs[i].label) + '</span>'
+          + '<div class="taste-bar"><div class="taste-fill" style="width:' + pct + '%"></div></div>'
+          + '<span class="taste-value">' + val + '/5</span>'
+          + '</div>';
+  }
+  if (!hasData) return '';
+
+  return '<div class="taste-section">'
+       + '<h4><i class="mdi mdi-palette"></i> ' + escapeHtml(T.taste_profile || 'Taste Profile') + '</h4>'
+       + '<div class="taste-rows">' + rows + '</div>'
+       + '</div>';
+}
+
+function buildFoodPairings(w) {
+  var fp = w.food_pairings;
+  if (!fp || !fp.length) return '';
+
+  var tags = '';
+  for (var i = 0; i < fp.length; i++) {
+    tags += '<span class="food-tag">' + escapeHtml(fp[i]) + '</span>';
+  }
+
+  return '<div class="food-section">'
+       + '<h4><i class="mdi mdi-silverware-fork-knife"></i> ' + escapeHtml(T.food_pairings || 'Food Pairings') + '</h4>'
+       + '<div class="food-pairings">' + tags + '</div>'
+       + '</div>';
+}
+
+function buildWineExtrasHtml(w) {
+  return buildMaturityGraph(w) + buildTasteProfile(w) + buildFoodPairings(w);
+}
+</script>

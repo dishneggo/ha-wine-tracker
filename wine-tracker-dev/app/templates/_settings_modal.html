@@ -1,0 +1,301 @@
+{# Settings modal - shared partial (included by index.html & stats.html) #}
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>{{ t.settings_title }}</span>
+      <button class="modal-close" onclick="closeModal('settingsModal')">&times;</button>
+    </div>
+    <div class="settings-tabs">
+      <button type="button" class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')"><i class="mdi mdi-palette-outline"></i> {{ t.settings_theme }}</button>
+      {% if not auth_readonly %}<button type="button" class="settings-tab" data-tab="ai" onclick="switchSettingsTab('ai')"><i class="mdi mdi-robot-outline"></i> {{ t.settings_ai }}</button>{% endif %}
+      {% if ai_enabled %}<button type="button" class="settings-tab" data-tab="sommelier" onclick="switchSettingsTab('sommelier')"><i class="mdi mdi-chat-outline"></i> {{ t.settings_chat }}</button>{% endif %}
+      <button type="button" class="settings-tab" data-tab="data" onclick="switchSettingsTab('data')"><i class="mdi mdi-database-outline"></i> {{ t.settings_data }}</button>
+      <button type="button" class="settings-tab" data-tab="about" onclick="switchSettingsTab('about')"><i class="mdi mdi-information-outline"></i> {{ t.settings_about }}</button>
+    </div>
+    <div class="modal-body">
+      <!-- Hidden element for translated theme labels -->
+      <span data-theme-labels='{"classic":"{{ t.theme_classic }}","vineyard":"{{ t.theme_vineyard }}","champagne":"{{ t.theme_champagne }}","slate":"{{ t.theme_slate }}","burgundy":"{{ t.theme_burgundy }}","homeassistant":"{{ t.theme_homeassistant }}"}'  style="display:none"></span>
+
+      <div class="settings-section" data-settings-tab="appearance">
+        <div class="settings-section-title">{{ t.settings_theme }}</div>
+
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.settings_theme_label }}</div>
+          <div class="settings-row-control">
+            <div class="theme-dropdown">
+              <button type="button" class="theme-dropdown-btn" onclick="toggleThemeDropdown(event)">
+                <span class="theme-dots"></span>
+                <span class="dd-label">Classic</span>
+                <i class="mdi mdi-chevron-down dd-arrow"></i>
+              </button>
+              <div class="theme-dropdown-list">
+                <div class="theme-dropdown-item" data-theme="homeassistant" onclick="setThemeName('homeassistant')">
+                  <span class="theme-dots"><span class="theme-dot" style="background:#111111"></span><span class="theme-dot" style="background:#009ac7"></span><span class="theme-dot" style="background:#ff9800"></span></span>
+                  <span>{{ t.theme_homeassistant }}</span>
+                  <i class="mdi mdi-check dd-check"></i>
+                </div>
+                <div class="theme-dropdown-item" data-theme="classic" onclick="setThemeName('classic')">
+                  <span class="theme-dots"><span class="theme-dot" style="background:#1a0a0f"></span><span class="theme-dot" style="background:#c0392b"></span><span class="theme-dot" style="background:#d4a843"></span></span>
+                  <span>{{ t.theme_classic }}</span>
+                  <i class="mdi mdi-check dd-check"></i>
+                </div>
+                <div class="theme-dropdown-item" data-theme="vineyard" onclick="setThemeName('vineyard')">
+                  <span class="theme-dots"><span class="theme-dot" style="background:#0f1a12"></span><span class="theme-dot" style="background:#4caf50"></span><span class="theme-dot" style="background:#c9a84c"></span></span>
+                  <span>{{ t.theme_vineyard }}</span>
+                  <i class="mdi mdi-check dd-check"></i>
+                </div>
+                <div class="theme-dropdown-item" data-theme="champagne" onclick="setThemeName('champagne')">
+                  <span class="theme-dots"><span class="theme-dot" style="background:#1a1508"></span><span class="theme-dot" style="background:#c9a84c"></span><span class="theme-dot" style="background:#d4a843"></span></span>
+                  <span>{{ t.theme_champagne }}</span>
+                  <i class="mdi mdi-check dd-check"></i>
+                </div>
+                <div class="theme-dropdown-item" data-theme="slate" onclick="setThemeName('slate')">
+                  <span class="theme-dots"><span class="theme-dot" style="background:#12151c"></span><span class="theme-dot" style="background:#5c7cfa"></span><span class="theme-dot" style="background:#c9a84c"></span></span>
+                  <span>{{ t.theme_slate }}</span>
+                  <i class="mdi mdi-check dd-check"></i>
+                </div>
+                <div class="theme-dropdown-item" data-theme="burgundy" onclick="setThemeName('burgundy')">
+                  <span class="theme-dots"><span class="theme-dot" style="background:#180a1c"></span><span class="theme-dot" style="background:#ab47bc"></span><span class="theme-dot" style="background:#d4a843"></span></span>
+                  <span>{{ t.theme_burgundy }}</span>
+                  <i class="mdi mdi-check dd-check"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-row" style="align-items: flex-start;">
+          <div class="settings-row-label" style="padding-top: .45rem;">{{ t.settings_mode }}</div>
+          <div class="settings-row-control">
+            <div class="view-mode-radios">
+              <label class="view-mode-radio" onclick="setThemeMode('system')">
+                <input type="radio" name="themeMode" value="system" checked>
+                <span><i class="mdi mdi-laptop"></i> {{ t.theme_system }}</span>
+              </label>
+              <label class="view-mode-radio" onclick="setThemeMode('dark')">
+                <input type="radio" name="themeMode" value="dark">
+                <span><i class="mdi mdi-weather-night"></i> {{ t.theme_dark }}</span>
+              </label>
+              <label class="view-mode-radio" onclick="setThemeMode('light')">
+                <input type="radio" name="themeMode" value="light">
+                <span><i class="mdi mdi-weather-sunny"></i> {{ t.theme_light }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-row" style="align-items: flex-start;">
+          <div class="settings-row-label" style="padding-top: .45rem;">{{ t.view_mode }}</div>
+          <div class="settings-row-control">
+            <div class="view-mode-radios">
+              <label class="view-mode-radio" onclick="setViewMode('cards')">
+                <input type="radio" name="viewMode" value="cards" checked>
+                <span><i class="mdi mdi-view-module"></i> {{ t.view_cards }}</span>
+              </label>
+              <label class="view-mode-radio" onclick="setViewMode('list')">
+                <input type="radio" name="viewMode" value="list">
+                <span><i class="mdi mdi-view-list"></i> {{ t.view_list }}</span>
+              </label>
+              <label class="view-mode-radio" onclick="setViewMode('grid')">
+                <input type="radio" name="viewMode" value="grid">
+                <span><i class="mdi mdi-view-grid"></i> {{ t.view_grid }}</span>
+              </label>
+              <label class="view-mode-radio" onclick="setViewMode('table')">
+                <input type="radio" name="viewMode" value="table">
+                <span><i class="mdi mdi-table"></i> {{ t.view_table }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.settings_advanced_filter_default }}</div>
+          <div class="settings-row-control">
+            <label class="toggle-switch">
+              <input type="checkbox" id="advancedFilterDefaultToggle" onchange="setAdvancedFilterDefault(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.settings_show_empty }}</div>
+          <div class="settings-row-control">
+            <label class="toggle-switch">
+              <input type="checkbox" id="showEmptyDefaultToggle" onchange="setShowEmptyDefault(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat (only when AI is configured) -->
+      {% if ai_enabled %}
+      <div class="settings-section" data-settings-tab="sommelier">
+        <div class="settings-section-title">{{ t.settings_chat }}</div>
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.settings_chat_recording }}</div>
+          <div class="settings-row-control">
+            <label class="toggle-switch">
+              <input type="checkbox" id="chatRecordingToggle" onchange="toggleChatRecording(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.settings_chat_edit_wines }}</div>
+          <div class="settings-row-control">
+            <label class="toggle-switch">
+              <input type="checkbox" id="chatEditWinesToggle" onchange="toggleChatEditWines(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- AI provider settings (hidden for readonly users) -->
+      {% if not auth_readonly %}
+      <div class="settings-section" data-settings-tab="ai">
+        <div class="settings-section-title">{{ t.settings_ai }}</div>
+
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.settings_ai_provider }}</div>
+          <div class="settings-row-control">
+            <select id="aiProviderSelect" onchange="aiSettingsProviderChanged()">
+              <option value="none">{{ t.ai_provider_none }}</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="ollama">Ollama</option>
+              <option value="minimax">MiniMax</option>
+              <option value="mistral">Mistral</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="aiProviderFields" class="settings-fields" style="display:none">
+          <div class="settings-row" id="aiKeyRow">
+            <div class="settings-row-label">{{ t.settings_ai_api_key }}</div>
+            <div class="settings-row-control">
+              <input type="password" id="aiApiKeyInput" class="ai-field" autocomplete="new-password">
+            </div>
+          </div>
+          <div class="settings-row" id="aiHostRow" style="display:none">
+            <div class="settings-row-label">Ollama Host</div>
+            <div class="settings-row-control">
+              <input type="text" id="aiHostInput" class="ai-field" placeholder="http://localhost:11434">
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-label">{{ t.settings_ai_model }}</div>
+            <div class="settings-row-control">
+              <input type="text" id="aiModelInput" class="ai-field" autocomplete="off">
+            </div>
+          </div>
+          <div class="settings-row settings-row--top">
+            <div class="settings-row-label">{{ t.settings_ai_chat_model }}</div>
+            <div class="settings-row-control">
+              <input type="text" id="aiChatModelInput" class="ai-field" autocomplete="off">
+              <div class="data-row-hint">{{ t.settings_ai_chat_model_hint }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-row-label"></div>
+          <div class="settings-row-control">
+            <div class="ai-actions">
+              <button type="button" class="btn-submit ai-action-btn" id="aiSaveBtn" onclick="aiSettingsSave()">{{ t.btn_save_settings }}</button>
+              <button type="button" class="btn-cancel ai-action-btn" id="aiTestBtn" onclick="aiSettingsTest()">{{ t.btn_test_connection }}</button>
+            </div>
+            <div id="aiSettingsStatus" class="ai-status" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Data: Export / Import -->
+      <div class="settings-section" data-settings-tab="data">
+        <div class="settings-section-title">{{ t.settings_data }}</div>
+
+        <div class="settings-row data-row">
+          <div class="settings-row-label">
+            {{ t.data_export }}
+            <div class="data-row-hint">{{ t.data_export_hint }}</div>
+          </div>
+          <div class="settings-row-control">
+            <a href="{{ ingress }}/export" class="btn-cancel data-action-btn">
+              <i class="mdi mdi-download"></i> {{ t.btn_export_download }}
+            </a>
+          </div>
+        </div>
+
+        {% if not auth_readonly %}
+        <div class="settings-row data-row">
+          <div class="settings-row-label">
+            {{ t.data_import }}
+            <div class="data-row-hint">{{ t.data_import_hint }}</div>
+          </div>
+          <div class="settings-row-control">
+            <label class="btn-cancel data-action-btn" style="cursor:pointer; margin:0;">
+              <i class="mdi mdi-upload"></i> <span>{{ t.btn_import_choose }}</span>
+              <input type="file" id="importFileInput" accept=".zip,.csv" style="display:none;" onchange="handleImportFile(this)">
+            </label>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- About -->
+      <div class="settings-section" data-settings-tab="about">
+        <div class="settings-section-title">{{ t.settings_about }}</div>
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.about_version }}</div>
+          <div class="settings-row-control" style="font-size: .85rem; color: var(--muted);">
+            v{{ app_version }}
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.about_github }}</div>
+          <div class="settings-row-control">
+            <a href="https://github.com/xenofex7/ha-wine-tracker" target="_blank" rel="noopener" class="settings-link">
+              <i class="mdi mdi-github"></i> xenofex7/ha-wine-tracker
+            </a>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.about_changelog }}</div>
+          <div class="settings-row-control">
+            <a href="https://github.com/xenofex7/ha-wine-tracker/blob/main/CHANGELOG.md" target="_blank" rel="noopener" class="settings-link">
+              <i class="mdi mdi-text-box-outline"></i> CHANGELOG.md
+            </a>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.about_community }}</div>
+          <div class="settings-row-control">
+            <a href="https://community.home-assistant.io/t/wine-tracker-home-assistant-app-add-on/989021" target="_blank" rel="noopener" class="settings-link">
+              <i class="mdi mdi-forum-outline"></i> Home Assistant Community
+            </a>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">{{ t.about_license }}</div>
+          <div class="settings-row-control">
+            <a href="https://github.com/xenofex7/ha-wine-tracker/blob/main/LICENSE" target="_blank" rel="noopener" class="settings-link">
+              <i class="mdi mdi-scale-balance"></i> MIT
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    {% if auth_user %}
+    <div class="settings-footer">
+      <span class="settings-footer-user"><i class="mdi mdi-account"></i> {{ auth_user }}</span>
+      <a href="{{ ingress }}/logout" class="settings-footer-logout"><i class="mdi mdi-logout"></i> {{ t.btn_logout }}</a>
+    </div>
+    {% endif %}
+  </div>
+</div>

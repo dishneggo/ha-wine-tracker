@@ -5,4 +5,7 @@ wine-tracker/app/data/
 wine-tracker/tests/__pycache__/
 .DS_Store
 .claude/
-CLAUDE.md
+CLAUDE.mdwine-tracker-dev/app/__pycache__/
+wine-tracker-dev/app/data/
+wine-tracker-dev/tests/__pycache__/
+wine-tracker-dev/.pytest_cache/

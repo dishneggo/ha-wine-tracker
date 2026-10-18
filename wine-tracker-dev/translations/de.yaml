@@ -1,0 +1,53 @@
+configuration:
+  currency:
+    name: Währung
+    description: Währungssymbol für Weinpreise (z.B. CHF, EUR, USD, GBP).
+  language:
+    name: Sprache
+    description: >-
+      Sprache der App-Oberfläche. Unterstützt: de (Deutsch), en (Englisch),
+      fr (Französisch), it (Italienisch), es (Spanisch), pt (Portugiesisch), nl (Niederländisch).
+  ai_provider:
+    name: KI-Anbieter
+    description: >-
+      Wähle einen KI-Anbieter für die Weinetikett-Erkennung, oder "none" zum Deaktivieren.
+      Wenn aktiviert, kannst du ein Foto vom Etikett machen und die KI füllt die Weindetails
+      automatisch aus.
+  anthropic_api_key:
+    name: Anthropic API-Schlüssel
+    description: API-Schlüssel von console.anthropic.com. Erforderlich bei KI-Anbieter "anthropic".
+  anthropic_model:
+    name: Anthropic Modell
+    description: Modellname für Anthropic (z.B. claude-opus-4-8).
+  openai_api_key:
+    name: OpenAI API-Schlüssel
+    description: API-Schlüssel von platform.openai.com. Erforderlich bei KI-Anbieter "openai".
+  openai_model:
+    name: OpenAI Modell
+    description: Modellname für OpenAI (z.B. gpt-5.5).
+  openrouter_api_key:
+    name: OpenRouter API-Schlüssel
+    description: API-Schlüssel von openrouter.ai. Erforderlich bei KI-Anbieter "openrouter".
+  openrouter_model:
+    name: OpenRouter Modell
+    description: Modell-Kennung für OpenRouter (z.B. anthropic/claude-opus-4.8).
+  ollama_host:
+    name: Ollama Host
+    description: >-
+      URL deines Ollama-Servers (z.B. http://localhost:11434).
+      Erforderlich bei KI-Anbieter "ollama". Kein API-Schlüssel nötig.
+  ollama_model:
+    name: Ollama Modell
+    description: Vision-Modellname für Ollama (z.B. llama3.2-vision, llama3.2-vision-llama3).
+  minimax_api_key:
+    name: MiniMax API-Schlüssel
+    description: API-Schlüssel von minimaxi.com. Erforderlich bei KI-Anbieter "minimax".
+  minimax_model:
+    name: MiniMax Modell
+    description: Modellname für MiniMax (z.B. MiniMax-M3).
+  mistral_api_key:
+    name: Mistral API-Schlüssel
+    description: API-Schlüssel von console.mistral.ai. Erforderlich bei KI-Anbieter "mistral".
+  mistral_model:
+    name: Mistral Modell
+    description: Modellname für Mistral (z.B. mistral-medium-latest).
