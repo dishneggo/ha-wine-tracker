@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.11.0-dev.2
+
+- Polish settings modal for mobile and fix tab bar scrollbar
+- Anchor settings modal top edge instead of vertical centering
+
+
 ## 1.11.0
 
 - **Out-of-stock wines stay visible** - wines that drop to zero bottles no longer vanish from the cellar. They now show an "Empty" ribbon, and a new persistent "Show empty bottles" toggle in Settings remembers your choice across sessions (the existing quick-toggle in the filter bar still works as a temporary shortcut). Thanks @rogercrocha for the contribution.
