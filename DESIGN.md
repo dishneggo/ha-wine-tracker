@@ -46,17 +46,17 @@ Wine Tracker is a Flask app with classic server rendering and a hand-written CSS
   // 10 core tokens x 12 sets (theme: [dark, light])
   "themes": {
     "tokens": ["bg", "surface", "border", "accent", "accent2", "gold", "text", "muted", "empty"],
-    "classic":       { "dark": ["#1a0a0f","#2a1520","#5a2a3a","#c0392b","#8b1a2a","#d4a843","#f0e0e5","#9a7a82","#3a2a30"],
-                       "light": ["#f5f0eb","#ffffff","#ddd0c8","#a03025","#7a1520","#9a7a20","#2a1a10","#7a6a60","#ece5de"] },
-    "vineyard":      { "dark": ["#0f1a12","#1a2a1e","#3a5a3e","#4caf50","#2e7d32","#c9a84c","#e0f0e5","#7a9a80","#253525"],
-                       "light": ["#f0f5ef","#ffffff","#c5d8c5","#388e3c","#2e7d32","#8a7a25","#1a2a1a","#607a60","#e0ece0"] },
-    "champagne":     { "dark": ["#1a1508","#2a2418","#5a4a35","#c9a84c","#a08030","#d4a843","#f0ebe0","#9a8a70","#352e20"],
-                       "light": ["#faf8f0","#ffffff","#e0d8c5","#a08030","#806520","#9a7a20","#2a2510","#807560","#f0ebe0"] },
-    "slate":         { "dark": ["#12151c","#1c2030","#3a4058","#5c7cfa","#4263d8","#c9a84c","#dde0f0","#7a82a0","#252838"],
+    "classic":       { "dark": ["#1a0a0f","#2a1520","#5a2a3a","#c0392b","#8b1a2a","#d4a843","#f0e0e5","#9b7b83","#3a2a30"],
+                       "light": ["#f5f0eb","#ffffff","#ddd0c8","#a03025","#7a1520","#8f721e","#2a1a10","#7a6a60","#ece5de"] },
+    "vineyard":      { "dark": ["#0f1a12","#1a2a1e","#3a5a3e","#3a863d","#2e7d32","#c9a84c","#e0f0e5","#7a9a80","#253525"],
+                       "light": ["#f0f5ef","#ffffff","#c5d8c5","#348538","#2e7d32","#867624","#1a2a1a","#5d765d","#e0ece0"] },
+    "champagne":     { "dark": ["#1a1508","#2a2418","#5a4a35","#8c722a","#6e5a21","#d4a843","#f0ebe0","#9a8a70","#352e20"],
+                       "light": ["#faf8f0","#ffffff","#e0d8c5","#8e722b","#806520","#8f721e","#2a2510","#7c715d","#f0ebe0"] },
+    "slate":         { "dark": ["#12151c","#1c2030","#3a4058","#4368f9","#4263d8","#c9a84c","#dde0f0","#8088a4","#252838"],
                        "light": ["#f0f2f8","#ffffff","#c8cee0","#4263d8","#3050b8","#7a7a30","#1a1e30","#606880","#e2e5f0"] },
     "burgundy":      { "dark": ["#180a1c","#281525","#58284e","#ab47bc","#8e24aa","#d4a843","#f0e0f2","#9a7a95","#301a30"],
                        "light": ["#f8f0f8","#ffffff","#ddc5dd","#9c27b0","#7b1fa2","#8a6a30","#2a1a2c","#7a6080","#ece0ee"] },
-    "homeassistant": { "dark": ["#111111","#1c1c1c","#3a3a3a","#009ac7","#006787","#ff9800","#e1e1e1","#9b9b9b","#282828"],
+    "homeassistant": { "dark": ["#111111","#1c1c1c","#3a3a3a","#0080a6","#006787","#ff9800","#e1e1e1","#9b9b9b","#282828"],
                        "light": ["#fafafa","#ffffff","#cccccc","#006787","#004156","#c94e00","#141414","#5e5e5e","#e6e6e6"] }
   },
   "shadowToken": { "dark": "0 4px 24px rgba(0,0,0,.5)", "light": "0 4px 24px rgba(0,0,0,.1)" },
@@ -190,11 +190,11 @@ Named special cases remain: lightbox image `0 0 40px .6`, chat panel `0 8px 32px
 ### Tabs & Navigation
 
 - Header 56px sticky z100; desktop nav `.85rem/500`, active 700 `--text`; below 800px hamburger menu; below 600px bottom tab bar (56px + safe area, icon 1.25rem, active `--accent/700`).
-- Content tabs (settings): icon + label `.85rem/600`, active tab `--accent` with 2px underline, horizontal swipe strip without visible scrollbar.
+- Content tabs (settings): icon + label `.85rem/600`, active tab text `--text` with accent icon and 2px accent underline, horizontal swipe strip without visible scrollbar. Bottom tab bar active item: text `--text`, icon `--accent`.
 
 ### Chips, Badges, Cards, Tables
 
-- Data chips: BG `--bg`, r4, `.75rem`; count/status badges: pill, `--accent`/`--on-accent`, `.72→.75rem`; quantity badge on cards: dark overlay + blur, `--gold` when filled, clickable (popover).
+- Data chips: BG `--bg`, r4, `.75rem`; count/status badges: pill, `--accent`/`--on-accent`, `.72→.75rem`; quantity badge on cards: dark overlay + blur, fixed light text values (`#ccc`, filled `#d4a843`) since the overlay is dark in every theme, clickable (popover); in list view (no overlay) it uses `--muted`/`--gold`.
 - Card: `--surface`, 1px border, `--radius`, hover translateY(-2px) + `--shadow`; `.empty` opacity .5 dashed; ribbon diagonal with `--wine-*`.
 - Table: TH `.75rem/600` uppercase `--muted`, row hover accent tint 8%, responsive column hiding (900/700/500).
 - Empty state: centered, icon 4rem, logo 96px opacity .5 - one class for all pages.
@@ -205,7 +205,7 @@ Breakpoints (max-width, current = target): **500** phone condensing + fullscreen
 
 ## Accessibility
 
-- **Contrast:** AA in all 12 sets. Open violations (computed): white on `--accent` in vineyard/champagne/slate/HA dark (2.3-3.7) and vineyard/champagne light; `--muted` borderline in classic/slate dark; `--accent2` as hover text (down to 1.9, retired per colors rule); `#fff` on `--wine-dessertwein`/`--wine-empty` ribbons; semantic colors on white (solved by the light pairs). → accent adjustment per affected theme in the migration list.
+- **Contrast:** AA in all 12 sets. The 2026-10-18 token adjustments (gap 2) resolved the computed violations; remaining documented exceptions: in-content accent links in classic/burgundy dark, dessertwein ribbon text at 4.41, `--accent2` as hover text stays retired per colors rule.
 - **Focus:** `:focus-visible` ring for all interactive elements (mandatory, implemented globally). `outline: none` without replacement is forbidden. Non-native click targets (div/tr with onclick) must be keyboard-reachable: `button` element or `role` + `tabindex="0"` + Enter/Space (see gap 13).
 - **Touch:** minimum target size 34px (header icons 30px on mobile is the documented floor); hover only behind `@media (hover: hover)`.
 - **Motion:** respect `prefers-reduced-motion` (see Motion).
@@ -243,7 +243,7 @@ html.light {
 Prioritized list - to be worked off the next time the spot is touched, not as a big bang:
 
 1. ~~**Introduce semantic tokens**~~ **Done (2026-10-18):** `:root` block added; ~30 hardcodes migrated to `--danger/--success/--warning/--on-accent/--overlay*`. The `.btn-delete` fill migrated to `--danger-fill`/`--danger-fill-hover` (gap 14).
-2. **Contrast fixes:** adjust accent tones of vineyard/champagne/slate/HA dark (and vineyard/champagne light) towards 4.5:1 against white; lighten `--muted` slightly in classic/slate dark; review ribbon text colors for dessertwein/empty. Newly computed (audit 2026-10-18): accent as text on `--surface` in classic dark (3.2) and burgundy dark (3.6); `--gold` as text in classic/champagne/vineyard/slate/HA light (4.0-4.3); `--muted` in vineyard/champagne light (4.3); success toast (`--bg` on `--gold`) in classic light 3.6; qty badge (dark BG, light text values) down to 1.6; toggle track `--muted` in HA dark 2.8; empty star state `--border` on `--surface` below 3:1. → needs decisions: gold text variant for light, accent only as surface/underline or `--accent-text`, fixed dark text value for the qty badge.
+2. ~~**Contrast fixes**~~ **Done (2026-10-18, ratified):** accent tones of vineyard/champagne/slate/HA dark and vineyard/champagne light adjusted to >= 4.5:1 against white (champagne dark accent2 followed; theme previews synced); light gold values darkened to >= 4.5:1 as text (classic/champagne/vineyard); `--muted` fixed in classic/slate dark and vineyard/champagne light; active tabs show text in `--text` with the accent as underline/icon marker; qty badge uses fixed light text values (`#ccc`/`#d4a843`) on its always-dark overlay, list view keeps tokens; toggle track in HA dark `#767676`; empty stars `--muted` instead of `--border`; dessertwein/empty ribbons use `#333` text (dessertwein lands at 4.41 - documented residual). Remaining: in-content accent links in classic/burgundy dark stay below 4.5 (accepted, navigation affordance).
 3. **Button consolidation:** fold `.btn-primary`/`.btn-secondary` (adv filter) and `.ai-btn` back into `.btn-submit`/`.btn-cancel`; unify button height at 38 (the import 42px one); `white` → `--on-accent` (done for color usages; class consolidation open).
 4. ~~**Focus-visible**~~ **Done (2026-10-18):** global ring rule plus input ring recipe introduced; all `outline: none` spots retrofitted. Keyboard reachability of non-native targets remains gap 13.
 5. **Input unification:** 6 `--surface` inputs onto `--bg`; heights/font sizes of chat/adv inputs onto 38/.9rem; global `font-family: inherit` rule for controls; remove the `login.html` duplicate.
