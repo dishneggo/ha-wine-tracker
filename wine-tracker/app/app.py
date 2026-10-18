@@ -2545,6 +2545,68 @@ def api_ai_settings_test():
         return jsonify(ok=False, error=str(e)[:300]), 502
 
 
+def _list_provider_models(provider, opts):
+    import requests as req
+    verify = _ssl_verify()
+    if provider == "anthropic":
+        key = opts.get("anthropic_api_key", "").strip()
+        if not key:
+            return None
+        resp = req.get("https://api.anthropic.com/v1/models?limit=100", timeout=10,
+                       headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
+                       verify=verify)
+        resp.raise_for_status()
+        return [m["id"] for m in resp.json().get("data", [])]
+    if provider == "openai":
+        key = opts.get("openai_api_key", "").strip()
+        if not key:
+            return None
+        resp = req.get("https://api.openai.com/v1/models", timeout=10,
+                       headers={"Authorization": f"Bearer {key}"}, verify=verify)
+        resp.raise_for_status()
+        ids = [m["id"] for m in resp.json().get("data", [])]
+        return sorted(i for i in ids if i.startswith(("gpt-", "o1", "o3", "o4", "chatgpt")))
+    if provider == "openrouter":
+        resp = req.get("https://openrouter.ai/api/v1/models", timeout=10, verify=verify)
+        resp.raise_for_status()
+        return sorted(m["id"] for m in resp.json().get("data", []))
+    if provider == "mistral":
+        key = opts.get("mistral_api_key", "").strip()
+        if not key:
+            return None
+        resp = req.get("https://api.mistral.ai/v1/models", timeout=10,
+                       headers={"Authorization": f"Bearer {key}"}, verify=verify)
+        resp.raise_for_status()
+        return sorted({m["id"] for m in resp.json().get("data", [])})
+    if provider == "ollama":
+        host = opts.get("ollama_host", "").strip().rstrip("/")
+        if not host:
+            return None
+        resp = req.get(f"{host}/api/tags", timeout=10, verify=verify)
+        resp.raise_for_status()
+        return sorted(m["name"] for m in resp.json().get("models", []))
+    if provider == "minimax":
+        return []
+    return None
+
+
+@app.route("/api/ai-settings/models")
+def api_ai_settings_models():
+    denied = _ai_settings_forbidden()
+    if denied:
+        return denied
+    provider = request.args.get("provider", "").strip().lower()
+    if provider not in AI_PROVIDERS:
+        return jsonify(ok=False, error="unknown_provider"), 400
+    try:
+        models = _list_provider_models(provider, load_options())
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)[:200]), 502
+    if models is None:
+        return jsonify(ok=False, error="not_configured"), 400
+    return jsonify(ok=True, models=models[:300])
+
+
 PREF_KEYS = {
     "wine-theme", "wine-theme-name", "wineViewMode", "wineTableSortCol",
     "wineTableSortAsc", "wine-show-empty", "wine-advanced-filter-default",

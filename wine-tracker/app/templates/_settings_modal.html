@@ -190,13 +190,14 @@
           <div class="settings-row">
             <div class="settings-row-label">{{ t.settings_ai_model }}</div>
             <div class="settings-row-control">
-              <input type="text" id="aiModelInput" class="ai-field" autocomplete="off">
+              <input type="text" id="aiModelInput" class="ai-field" autocomplete="off" list="aiModelList">
+              <datalist id="aiModelList"></datalist>
             </div>
           </div>
           <div class="settings-row settings-row--top">
             <div class="settings-row-label">{{ t.settings_ai_chat_model }}</div>
             <div class="settings-row-control">
-              <input type="text" id="aiChatModelInput" class="ai-field" autocomplete="off">
+              <input type="text" id="aiChatModelInput" class="ai-field" autocomplete="off" list="aiModelList">
               <div class="data-row-hint">{{ t.settings_ai_chat_model_hint }}</div>
             </div>
           </div>

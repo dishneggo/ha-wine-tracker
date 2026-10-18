@@ -197,6 +197,32 @@ function aiSettingsProviderChanged() {
   var keyInput = document.getElementById('aiApiKeyInput');
   keyInput.value = '';
   keyInput.placeholder = _aiSettings.keys[p + '_api_key'] ? T.ai_key_stored : T.ai_key_placeholder;
+  _aiLoadModelList(p);
+}
+
+var _aiModelCache = {};
+
+function _aiFillModelList(models) {
+  var list = document.getElementById('aiModelList');
+  if (!list) return;
+  list.innerHTML = models.map(function(m) {
+    return '<option value="' + m.replace(/"/g, '&quot;') + '"></option>';
+  }).join('');
+}
+
+function _aiLoadModelList(provider) {
+  if (_aiModelCache[provider]) { _aiFillModelList(_aiModelCache[provider]); return; }
+  _aiFillModelList([]);
+  fetch(_apiBase() + '/api/ai-settings/models?provider=' + encodeURIComponent(provider))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok || !data.models) return;
+      _aiModelCache[provider] = data.models;
+      if (document.getElementById('aiProviderSelect').value === provider) {
+        _aiFillModelList(data.models);
+      }
+    })
+    .catch(function() {});
 }
 
 function aiSettingsSave(cb) {
@@ -221,6 +247,7 @@ function aiSettingsSave(cb) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data.ok) { _aiStatus(T.ai_save_failed, 'error'); _aiBusy(false); return; }
+      if (payload[p + '_api_key']) delete _aiModelCache[p];
       document.getElementById('aiApiKeyInput').value = '';
       _aiStatus(T.ai_saved, 'ok');
       if (typeof cb === 'function') { cb(); return; }
