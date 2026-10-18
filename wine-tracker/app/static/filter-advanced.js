@@ -27,6 +27,7 @@
     { key: 'region',       group: 'text',   type: 'text',   label: 'filter_field_region' },
     { key: 'grape',        group: 'text',   type: 'text',   label: 'filter_field_grape' },
     { key: 'location',     group: 'text',   type: 'text',   label: 'filter_field_location' },
+    { key: 'purchased_at', group: 'text',   type: 'text',   label: 'filter_field_purchased_at' },
     { key: 'notes',        group: 'text',   type: 'text',   label: 'filter_field_notes' },
     // Numbers
     { key: 'year',         group: 'numbers', type: 'number', label: 'filter_field_year',     integer: true },
@@ -37,8 +38,6 @@
     // Choice
     { key: 'type',          group: 'choice', type: 'choice', label: 'filter_field_type' },
     { key: 'bottle_format', group: 'choice', type: 'choice', label: 'filter_field_bottle_format' },
-    // Date
-    { key: 'purchased_at', group: 'date',   type: 'date',   label: 'filter_field_purchased_at' },
     // Drink window (virtual, computed from drink_from/drink_until)
     { key: 'drink_window', group: 'drinkwindow', type: 'drinkwindow', label: 'filter_group_drinkwindow' },
   ];
@@ -47,7 +46,6 @@
     { key: 'text',         label: 'filter_group_text',        icon: 'mdi-format-text' },
     { key: 'numbers',      label: 'filter_group_numbers',     icon: 'mdi-numeric' },
     { key: 'choice',       label: 'filter_group_choice',      icon: 'mdi-format-list-bulleted' },
-    { key: 'date',         label: 'filter_group_date',        icon: 'mdi-calendar' },
     { key: 'drinkwindow',  label: 'filter_group_drinkwindow', icon: 'mdi-clock-outline' },
   ];
 
