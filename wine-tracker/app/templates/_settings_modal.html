@@ -190,14 +190,19 @@
           <div class="settings-row">
             <div class="settings-row-label">{{ t.settings_ai_model }}</div>
             <div class="settings-row-control">
-              <input type="text" id="aiModelInput" class="ai-field" autocomplete="off" list="aiModelList">
-              <datalist id="aiModelList"></datalist>
+              <div class="model-dd-wrap">
+                <input type="text" id="aiModelInput" class="ai-field" autocomplete="off">
+                <button type="button" class="model-dd-btn" id="aiModelDdBtn" onclick="toggleModelDd('aiModelInput', event)" style="display:none"><i class="mdi mdi-chevron-down"></i></button>
+              </div>
             </div>
           </div>
           <div class="settings-row settings-row--top">
             <div class="settings-row-label">{{ t.settings_ai_chat_model }}</div>
             <div class="settings-row-control">
-              <input type="text" id="aiChatModelInput" class="ai-field" autocomplete="off" list="aiModelList">
+              <div class="model-dd-wrap">
+                <input type="text" id="aiChatModelInput" class="ai-field" autocomplete="off">
+                <button type="button" class="model-dd-btn" id="aiChatModelDdBtn" onclick="toggleModelDd('aiChatModelInput', event)" style="display:none"><i class="mdi mdi-chevron-down"></i></button>
+              </div>
               <div class="data-row-hint">{{ t.settings_ai_chat_model_hint }}</div>
             </div>
           </div>
@@ -300,3 +305,7 @@
     {% endif %}
   </div>
 </div>
+
+{% if not auth_readonly %}
+<div class="model-dd-list" id="aiModelDd" style="display:none"></div>
+{% endif %}
