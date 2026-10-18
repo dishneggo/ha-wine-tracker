@@ -23,6 +23,7 @@
   var FIELDS = [
     // Text
     { key: 'name',         group: 'text',   type: 'text',   label: 'filter_field_name' },
+    { key: 'producer',     group: 'text',   type: 'text',   label: 'filter_field_producer' },
     { key: 'region',       group: 'text',   type: 'text',   label: 'filter_field_region' },
     { key: 'grape',        group: 'text',   type: 'text',   label: 'filter_field_grape' },
     { key: 'location',     group: 'text',   type: 'text',   label: 'filter_field_location' },
@@ -32,6 +33,7 @@
     { key: 'price',        group: 'numbers', type: 'number', label: 'filter_field_price' },
     { key: 'rating',       group: 'numbers', type: 'number', label: 'filter_field_rating',   integer: true, min: 0, max: 5 },
     { key: 'quantity',     group: 'numbers', type: 'number', label: 'filter_field_quantity', integer: true, min: 0 },
+    { key: 'alcohol_pct',  group: 'numbers', type: 'number', label: 'filter_field_alcohol',  min: 0 },
     // Choice
     { key: 'type',          group: 'choice', type: 'choice', label: 'filter_field_type' },
     { key: 'bottle_format', group: 'choice', type: 'choice', label: 'filter_field_bottle_format' },
