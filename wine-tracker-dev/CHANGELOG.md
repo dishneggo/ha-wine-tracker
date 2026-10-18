@@ -1,9 +1,10 @@
 # Changelog
 
-## 1.11.0-dev.4
+## 1.11.0-dev.5
 
-- Turn AI model fields into real dropdowns in house style
-- Add live model suggestions to the AI settings model fields
+- Fix sticky hover state on advanced filter footer buttons on touch
+- Fix export download inside the HA companion app
+- Skip duplicate safe-area inset inside the HA ingress frame
 
 
 ## 1.11.0

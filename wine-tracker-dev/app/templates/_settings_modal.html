@@ -231,9 +231,9 @@
             <div class="data-row-hint">{{ t.data_export_hint }}</div>
           </div>
           <div class="settings-row-control">
-            <a href="{{ ingress }}/export" class="btn-cancel data-action-btn">
+            <button type="button" id="exportBackupBtn" class="btn-cancel data-action-btn" onclick="exportBackup()">
               <i class="mdi mdi-download"></i> {{ t.btn_export_download }}
-            </a>
+            </button>
           </div>
         </div>
 

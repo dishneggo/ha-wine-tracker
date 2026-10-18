@@ -11,7 +11,7 @@
 </script>
 <title>{{ t.chat_title }} - Wine Tracker</title>
 </head>
-<body class="chat-page">
+<body class="chat-page{% if ingress %} embedded{% endif %}">
 
 <header>
   <a class="nav-brand" href="{{ ingress }}/" style="display:flex"><img src="{{ ingress }}/static/logo.png" alt="Wine Tracker" class="nav-logo"></a>

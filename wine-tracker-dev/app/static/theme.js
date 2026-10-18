@@ -351,6 +351,40 @@ function aiSettingsTest() {
   });
 }
 
+// ── Data: Export ──────────────────────────────────────────────────────────────
+
+function exportBackup() {
+  var btn = document.getElementById('exportBackupBtn');
+  if (btn) btn.disabled = true;
+  fetch(_apiBase() + '/export')
+    .then(function(r) {
+      if (!r.ok) throw new Error('export failed');
+      var dispo = r.headers.get('Content-Disposition') || '';
+      var match = dispo.match(/filename="?([^";]+)"?/);
+      var name = match ? match[1] : 'wine-tracker-export.zip';
+      return r.blob().then(function(blob) { return { blob: blob, name: name }; });
+    })
+    .then(function(res) {
+      var embedded = document.body.classList.contains('embedded');
+      if (embedded && navigator.canShare) {
+        var file = new File([res.blob], res.name, { type: 'application/zip' });
+        if (navigator.canShare({ files: [file] })) {
+          return navigator.share({ files: [file] }).catch(function() {});
+        }
+      }
+      var url = URL.createObjectURL(res.blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = res.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+    })
+    .catch(function() { window.location.href = _apiBase() + '/export'; })
+    .finally(function() { if (btn) btn.disabled = false; });
+}
+
 // ── Data: Import ──────────────────────────────────────────────────────────────
 // Remember the token returned by /import/preview so confirmImport() can commit.
 var _importToken = null;

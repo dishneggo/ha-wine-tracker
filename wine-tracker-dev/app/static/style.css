@@ -332,6 +332,11 @@ html.light .filter-option:hover { background: rgba(0,0,0,.05); }
   /* Push content above tab bar */
   body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 4px); }
   /* FAB override: moved after base .fab definition (line ~435) for specificity */
+
+  /* HA ingress already keeps the frame above the home indicator -
+     skip the extra safe-area inset inside the embedded app */
+  body.embedded .bottom-tab-bar { padding-bottom: 0; }
+  body.embedded { padding-bottom: calc(56px + 4px); }
 }
 
 /* ── Index: Grid & Cards ───────────────────────────────────────────────────── */
@@ -746,6 +751,7 @@ html.light .filter-option:hover { background: rgba(0,0,0,.05); }
 .fab:active { transform: scale(0.92); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
 @media (max-width: 600px) {
   .fab { bottom: calc(1rem + 56px + env(safe-area-inset-bottom, 20px)); right: 1rem; }
+  body.embedded .fab { bottom: calc(1rem + 56px); }
 }
 
 /* ── Overlay Base (shared lightbox + modal) ────────────────────────────────── */
@@ -2038,6 +2044,8 @@ body.chat-page .grid { display: none; }
    blur, and we transition the chat panel's bottom offset smoothly. */
 :root { --kb-inset: 0px; }
 
+body.embedded .chat-fullpage { bottom: calc(56px + var(--kb-inset)); }
+
 .chat-fullpage {
   position: fixed;
   top: 56px;
@@ -2615,14 +2623,16 @@ html.light .adv-cond-input[type="time"]::-webkit-calendar-picker-indicator {
   font-weight: 500;
   cursor: pointer;
 }
-.adv-filter-footer .btn-cancel:hover,
-.adv-filter-footer .btn-secondary:hover { background: color-mix(in srgb, var(--accent2) 15%, transparent); border-color: var(--accent); }
+@media (hover: hover) {
+  .adv-filter-footer .btn-cancel:hover,
+  .adv-filter-footer .btn-secondary:hover { background: color-mix(in srgb, var(--accent2) 15%, transparent); border-color: var(--accent); }
+  .adv-filter-footer .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+}
 .adv-filter-footer .btn-primary {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
 }
-.adv-filter-footer .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
 
 /* Mobile: fullscreen modal, stacked conditions */
 @media (max-width: 600px) {
