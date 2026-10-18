@@ -2623,14 +2623,16 @@ html.light .adv-cond-input[type="time"]::-webkit-calendar-picker-indicator {
   font-weight: 500;
   cursor: pointer;
 }
-.adv-filter-footer .btn-cancel:hover,
-.adv-filter-footer .btn-secondary:hover { background: color-mix(in srgb, var(--accent2) 15%, transparent); border-color: var(--accent); }
+@media (hover: hover) {
+  .adv-filter-footer .btn-cancel:hover,
+  .adv-filter-footer .btn-secondary:hover { background: color-mix(in srgb, var(--accent2) 15%, transparent); border-color: var(--accent); }
+  .adv-filter-footer .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+}
 .adv-filter-footer .btn-primary {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
 }
-.adv-filter-footer .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
 
 /* Mobile: fullscreen modal, stacked conditions */
 @media (max-width: 600px) {
