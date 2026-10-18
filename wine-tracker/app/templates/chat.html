@@ -607,11 +607,22 @@ document.querySelector('.chat-fullpage').addEventListener('click', function(e) {
   // keyboard). iOS keyboard alone ≈ 291px, + suggestion bar ≈ 335px.
   var KB_INSET_PX = 320;
 
+  // The chat page is fully fixed-position, so any window scroll is wrong.
+  // WebKit still scrolls the (i)frame to reveal the focused input on top of
+  // our --kb-inset lift, which shoves the whole page upwards - clamp it back.
+  function resetWindowScroll() {
+    if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+  }
+  window.addEventListener('scroll', resetWindowScroll, { passive: true });
+
   input.addEventListener('focus', function() {
     document.documentElement.style.setProperty('--kb-inset', KB_INSET_PX + 'px');
+    setTimeout(resetWindowScroll, 100);
+    setTimeout(resetWindowScroll, 350);
   });
   input.addEventListener('blur', function() {
     document.documentElement.style.setProperty('--kb-inset', '0px');
+    setTimeout(resetWindowScroll, 100);
   });
 })();
 </script>
