@@ -111,6 +111,16 @@ docker inspect wine-tracker --format '{{.HostConfig.Memory}} {{.HostConfig.Memor
 # expect: 536870912 536870912 200 10001:10001 true
 ```
 
+With `CF_ACCESS_*` set, everything except `/healthz` answers 403 without a
+valid Cloudflare Access token, which is expected when testing on the server:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8096/        # 403 (no Access JWT)
+docker logs wine-tracker 2>&1 | grep 'Access check' | tail -1         # reason=missing
+# The container must resolve and reach Cloudflare and Anthropic:
+docker exec wine-tracker python3 -c "import jwt; print(len(jwt.PyJWKClient('https://empty-water-3d63.cloudflareaccess.com/cdn-cgi/access/certs').get_jwk_set().keys), 'Access keys')"
+```
+
 The build uses pip only (no Node). On the box used for testing it peaked
 well under the free memory on this host, but watch `free -m` during the
 first build.
@@ -162,6 +172,10 @@ What the vhost does:
   (`/login` 5 per minute, `/api/` 120 per minute) and passed to the app as
   `X-Forwarded-For`.
 - 20 MB upload cap, `/healthz` hidden (404), `X-Ingress-Path` blanked.
+
+End-to-end check (after the DNS record and Access app exist): open
+https://wine.clearnuvo.com in a private window. Cloudflare Access must ask
+for the one-time PIN first; only then does the app login page appear.
 
 Checks (from the server):
 

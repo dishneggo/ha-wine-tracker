@@ -195,5 +195,21 @@ class TestImportGuard:
         p = tmp_path / "users.json"
         p.write_text(json.dumps({"diego": {"hash": generate_password_hash("correct horse battery")}}))
         r = self._run({"HOSTED_MODE": "1", "AUTH_ENABLED": "true", "SECRET_KEY": GOOD_KEY,
+                       "USERS_FILE": str(p), "CF_ACCESS_TEAM_DOMAIN": "team.cloudflareaccess.com",
+                       "CF_ACCESS_AUD": "aud-tag"}, tmp_path)
+        assert r.returncode == 0, r.stderr
+
+    def test_hosted_without_cf_access_fails(self, tmp_path):
+        p = tmp_path / "users.json"
+        p.write_text(json.dumps({"diego": {"hash": generate_password_hash("correct horse battery")}}))
+        r = self._run({"HOSTED_MODE": "1", "AUTH_ENABLED": "true", "SECRET_KEY": GOOD_KEY,
                        "USERS_FILE": str(p)}, tmp_path)
+        assert r.returncode != 0
+        assert "CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD are required" in r.stderr
+
+    def test_hosted_cf_access_opt_out_for_local_testing(self, tmp_path):
+        p = tmp_path / "users.json"
+        p.write_text(json.dumps({"diego": {"hash": generate_password_hash("correct horse battery")}}))
+        r = self._run({"HOSTED_MODE": "1", "AUTH_ENABLED": "true", "SECRET_KEY": GOOD_KEY,
+                       "USERS_FILE": str(p), "CF_ACCESS_REQUIRED": "0"}, tmp_path)
         assert r.returncode == 0, r.stderr

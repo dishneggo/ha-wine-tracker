@@ -172,6 +172,93 @@ def _wants_json():
             or request.is_json)
 
 
+# ── Cloudflare Access (Zero Trust) at the origin ─────────────────────────────
+# When CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD are set, every request except
+# /healthz must carry a valid Cf-Access-Jwt-Assertion issued by that team for
+# that application. This stops anyone who reaches the origin without going
+# through Diego's Access application (including via another Cloudflare zone).
+def _normalize_team_domain(raw):
+    raw = (raw or "").strip().rstrip("/")
+    return raw.removeprefix("https://").removeprefix("http://")
+
+
+CF_ACCESS_TEAM_DOMAIN = _normalize_team_domain(os.environ.get("CF_ACCESS_TEAM_DOMAIN"))
+CF_ACCESS_AUD = os.environ.get("CF_ACCESS_AUD", "").strip()
+CF_ACCESS_ALLOWED_EMAILS = {
+    e.strip().lower() for e in os.environ.get("CF_ACCESS_ALLOWED_EMAILS", "").split(",") if e.strip()
+}
+CF_ACCESS_ENABLED = bool(CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD)
+_CF_ACCESS_EXEMPT_PATHS = {"/healthz"}
+_cf_jwks_client = None
+_cf_jwks_lock = threading.Lock()
+
+if HOSTED_MODE and not CF_ACCESS_ENABLED and _env_flag("CF_ACCESS_REQUIRED", True):
+    raise RuntimeError("HOSTED_MODE refuses to start: CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD "
+                       "are required (set CF_ACCESS_REQUIRED=0 only for local testing)")
+
+
+def _cf_jwks():
+    global _cf_jwks_client
+    with _cf_jwks_lock:
+        if _cf_jwks_client is None:
+            import jwt
+            _cf_jwks_client = jwt.PyJWKClient(
+                f"https://{CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs",
+                cache_keys=True, lifespan=3600, timeout=10,
+            )
+        return _cf_jwks_client
+
+
+def verify_cf_access_token(token, jwks_client=None, team_domain=None, audience=None):
+    """Return the verified claims of a Cloudflare Access JWT or raise jwt.PyJWTError."""
+    import jwt
+    team_domain = team_domain or CF_ACCESS_TEAM_DOMAIN
+    audience = audience or CF_ACCESS_AUD
+    client = jwks_client or _cf_jwks()
+    signing_key = client.get_signing_key_from_jwt(token)
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=["RS256"],
+        audience=audience,
+        issuer=f"https://{team_domain}",
+        leeway=30,
+        options={"require": ["exp", "iat", "iss", "aud"]},
+    )
+
+
+def check_cf_access():
+    if not CF_ACCESS_ENABLED or request.path in _CF_ACCESS_EXEMPT_PATHS:
+        return None
+    import jwt
+    token = request.headers.get("Cf-Access-Jwt-Assertion", "")
+    reason = None
+    if not token:
+        reason = "missing"
+    else:
+        try:
+            claims = verify_cf_access_token(token)
+            email = str(claims.get("email", "")).lower()
+            if CF_ACCESS_ALLOWED_EMAILS and email not in CF_ACCESS_ALLOWED_EMAILS:
+                reason = "email_not_allowed"
+            else:
+                g.cf_access_email = email
+                return None
+        except jwt.PyJWKClientConnectionError:
+            reason = "jwks_unavailable"
+        except jwt.PyJWTError as e:
+            reason = type(e).__name__
+    # Log the reason, never the token.
+    app.logger.warning("Cloudflare Access check failed (%s) for %s %s", reason, request.method, request.path)
+    if _wants_json():
+        return jsonify(ok=False, error="access_denied"), 403
+    return Response("Access denied", status=403, mimetype="text/plain")
+
+
+# Run before every other before_request hook (CSRF, auth, ...).
+app.before_request_funcs.setdefault(None, []).insert(0, check_cf_access)
+
+
 @app.errorhandler(CSRFError)
 def csrf_failed(e):
     app.logger.warning("CSRF rejected %s %s: %s", request.method, request.path, e.description)

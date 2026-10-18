@@ -2,11 +2,10 @@
 upload access control and locked AI settings."""
 import re
 
+import app as wine_app
 import pytest
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash
-
-import app as wine_app
 
 PW = "correct horse battery"
 
