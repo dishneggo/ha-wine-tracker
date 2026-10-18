@@ -1,31 +1,31 @@
 # Design System - Wine Tracker
 
-> **Single Source of Truth** für alle UI-Entscheidungen der Wine-Tracker-App (Templates + `style.css` + `theme.js`). Konsolidiert aus der vollständigen Ist-Aufnahme vom 18.10.2026 - dokumentiert den Bestand, legt Ziel-Skalen fest und führt die Migrationsliste. Das frühere `STYLE_GUIDE.md` ist vollständig in dieses Dokument aufgegangen.
+> **Single source of truth** for all UI decisions in the Wine Tracker app (templates + `style.css` + `theme.js`). Consolidated from the full as-is inventory of 2026-10-18 - it documents the current state, defines target scales and maintains the migration list. The former `STYLE_GUIDE.md` has been fully absorbed into this document.
 >
-> **Geltung:** Neue UI-Arbeit folgt den Ziel-Werten dieses Dokuments. Bestehender Code, der abweicht, steht in `## Known Gaps & Migration` - er wird beim nächsten Anfassen der Stelle migriert, nicht flächig umgebaut.
+> **Scope of authority:** New UI work follows the target values in this document. Existing code that deviates is listed in `## Known Gaps & Migration` - it gets migrated the next time the spot is touched, not in a big-bang rewrite.
 >
-> **Für Codegen + Audits:** Die maschinenlesbare Token-Schicht steht im JSONC-Block unter `## Tokens (machine-readable)`. Audits lesen diesen Block, nicht die Prosa.
+> **For codegen + audits:** The machine-readable token layer lives in the JSONC block under `## Tokens (machine-readable)`. Audits read that block, not the prose.
 >
-> Nicht Geltungsbereich: `docs/index.html` (Landing Page, eigenes Token-Set) und `wine-tracker-dev/` (generierter Spiegel).
+> Out of scope: `docs/index.html` (landing page, own token set) and `wine-tracker-dev/` (generated mirror).
 
 ## Overview
 
-Wine Tracker ist eine Flask-App mit klassischem Server-Rendering und einer handgeschriebenen CSS-Schicht ohne Framework. Das System ruht auf **10 Kern-Tokens** (`--bg --surface --border --accent --accent2 --gold --text --muted --empty --shadow`), die in **6 Themes × Hell/Dunkel** (12 Sets) vollständig definiert sind. Dazu kommen die themenunabhängigen **Weintyp-Farben** (`--wine-*`), `--radius` und neu die **semantischen Tokens** (`--danger --success --warning --on-accent --overlay*`).
+Wine Tracker is a Flask app with classic server rendering and a hand-written CSS layer without a framework. The system rests on **10 core tokens** (`--bg --surface --border --accent --accent2 --gold --text --muted --empty --shadow`), fully defined in **6 themes x light/dark** (12 sets). On top of that come the theme-independent **wine type colors** (`--wine-*`), `--radius` and the **semantic tokens** (`--danger --success --warning --on-accent --overlay*`).
 
-- **Default-Theme ist `homeassistant`**, Modus-Default ist `system` (prefers-color-scheme). Dark ist die `:root`-Basis, Light die Klasse `html.light`, Themes via `html[data-theme]` (Classic ohne Attribut).
-- **Schrift:** System-Stack (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`), keine Webfonts. `monospace` ist reserviert für technische Identifier (API-Keys, Modell-IDs, Vivino-IDs). Icons: Material Design Icons (MDI-Webfont via CDN), Grösse über `font-size`.
-- **Flächenlogik:** `--bg` ist das Canvas, `--surface` trägt Karten/Modals/Panels, `--empty` markiert Leerzustände. Trennung über 1px `--border`-Linien und Flächenwechsel, Schatten nur für echte Elevation.
-- **`--accent` ist die Aktionsfarbe** (Primär-Buttons, aktive Zustände, FAB, Links), `--accent2` ihre dunklere Hover-Stufe für Flächen. `--gold` ist die Auszeichnungsfarbe für Wein-Wertigkeit (Sterne, Preise, Flaschen-Badges) - im HA-Theme ein Orange.
-- **Erreichbarkeit:** WCAG AA (4.5:1 Text, 3:1 UI-Komponenten) ist verbindliches Ziel in allen 12 Sets. Bekannte Verstösse stehen in der Migrationsliste.
+- **Default theme is `homeassistant`**, default mode is `system` (prefers-color-scheme). Dark is the `:root` base, light is the class `html.light`, themes via `html[data-theme]` (classic has no attribute).
+- **Font:** system stack (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`), no webfonts. `monospace` is reserved for technical identifiers (API keys, model IDs, Vivino IDs). Icons: Material Design Icons (MDI webfont via CDN), sized through `font-size`.
+- **Surface logic:** `--bg` is the canvas, `--surface` carries cards/modals/panels, `--empty` marks empty states. Separation through 1px `--border` lines and surface changes; shadows only for real elevation.
+- **`--accent` is the action color** (primary buttons, active states, FAB, links), `--accent2` its darker hover step for surfaces. `--gold` is the accolade color for wine value (stars, prices, bottle badges) - an orange in the HA theme.
+- **Accessibility:** WCAG AA (4.5:1 text, 3:1 UI components) is the binding target in all 12 sets. Known violations are listed in the migration list.
 
 ## Design Principles
 
-1. **Ein Token, eine Rolle.** Farbe, Radius, Schatten, Abstand und Dauer kommen aus der Token-/Skalen-Schicht; Code referenziert den Namen, nie ein Inline-Literal. Was die Skala nicht hergibt, wird nicht erfunden, sondern hier ergänzt.
-2. **Jede Rolle hat genau eine Komponente.** Es gibt EINEN Primär-Button, EINEN Sekundär-Button, EIN Input-Rezept, EIN Popover-Rezept. Varianten entstehen über Modifier, nicht über neue Parallel-Klassen.
-3. **12 Sets oder gar nicht.** Jede Farbentscheidung wird gegen alle 6 Themes × Hell/Dunkel getroffen. Ein Wert, der nur im Dark-Mode funktioniert, bekommt ein Hell/Dunkel-Paar.
-4. **Accent handelt, Gold adelt.** `--accent` markiert Aktionen und aktive Zustände, `--gold` ausschliesslich Wein-Wertigkeit. Die beiden tauschen nie die Rolle.
-5. **AA ist nicht verhandelbar.** Text 4.5:1, UI-Komponenten 3:1 - in jedem Set. Wo eine Themefarbe das verfehlt, wird die Farbe justiert oder ein `--on-accent`-Override gesetzt, nicht die Schwelle aufgeweicht.
-6. **Touch zuerst.** Hover ist Verstärkung, nie Informationsträger; Hover-Stile stehen hinter `@media (hover: hover)`. `:active`, `:disabled` und `:focus-visible` sind Pflichtzustände interaktiver Komponenten.
+1. **One token, one role.** Color, radius, shadow, spacing and duration come from the token/scale layer; code references the name, never an inline literal. What the scale does not provide is not invented but added here.
+2. **Every role has exactly one component.** There is ONE primary button, ONE secondary button, ONE input recipe, ONE popover recipe. Variants come from modifiers, not from new parallel classes.
+3. **12 sets or not at all.** Every color decision is made against all 6 themes x light/dark. A value that only works in dark mode gets a light/dark pair.
+4. **Accent acts, gold accolades.** `--accent` marks actions and active states, `--gold` exclusively wine value. The two never swap roles.
+5. **AA is non-negotiable.** Text 4.5:1, UI components 3:1 - in every set. Where a theme color misses that, the color is adjusted or an `--on-accent` override is set; the threshold is never softened.
+6. **Touch first.** Hover is reinforcement, never the carrier of information; hover styles live behind `@media (hover: hover)`. `:active`, `:disabled` and `:focus-visible` are mandatory states of interactive components.
 
 ## Tokens (machine-readable)
 
@@ -39,11 +39,11 @@ Wine Tracker ist eine Flask-App mit klassischem Server-Rendering und einer handg
     "fontStrategy": "system stack, no webfonts; monospace only for technical identifiers"
   },
   "requirements": {
-    "darkMode": true,          // alle 6 Themes je Hell + Dunkel
-    "responsive": true,        // Breakpoints siehe unten
-    "a11y": "WCAG AA"          // 4.5:1 Text, 3:1 UI, focus-visible Pflicht
+    "darkMode": true,          // all 6 themes in light + dark
+    "responsive": true,        // breakpoints below
+    "a11y": "WCAG AA"          // 4.5:1 text, 3:1 UI, focus-visible mandatory
   },
-  // 10 Kern-Tokens x 12 Sets (Theme: [dark, light])
+  // 10 core tokens x 12 sets (theme: [dark, light])
   "themes": {
     "tokens": ["bg", "surface", "border", "accent", "accent2", "gold", "text", "muted", "empty"],
     "classic":       { "dark": ["#1a0a0f","#2a1520","#5a2a3a","#c0392b","#8b1a2a","#d4a843","#f0e0e5","#9a7a82","#3a2a30"],
@@ -60,15 +60,15 @@ Wine Tracker ist eine Flask-App mit klassischem Server-Rendering und einer handg
                        "light": ["#fafafa","#ffffff","#cccccc","#006787","#004156","#c94e00","#141414","#5e5e5e","#e6e6e6"] }
   },
   "shadowToken": { "dark": "0 4px 24px rgba(0,0,0,.5)", "light": "0 4px 24px rgba(0,0,0,.1)" },
-  // NEU: semantische Tokens, themenuebergreifend als Hell/Dunkel-Paar
+  // semantic tokens, theme-independent, as light/dark pairs
   "semantic": {
     "danger":   { "dark": "#e74c3c", "light": "#c0392b" },
     "success":  { "dark": "#27ae60", "light": "#1e8449" },
     "warning":  { "dark": "#e67e22", "light": "#b45309" },
-    "onAccent": "#ffffff",            // Ziel; Themes, deren Accent AA verfehlt, justieren den Accent (siehe Migration)
-    "overlay":        "rgba(0,0,0,.75)",   // Modal-Scrim
-    "overlayStrong":  "rgba(0,0,0,.92)",   // Lightbox
-    "overlaySoft":    "rgba(0,0,0,.6)"     // Dialog-auf-Modal
+    "onAccent": "#ffffff",            // target; themes whose accent misses AA adjust the accent (see migration)
+    "overlay":        "rgba(0,0,0,.75)",   // modal scrim
+    "overlayStrong":  "rgba(0,0,0,.92)",   // lightbox
+    "overlaySoft":    "rgba(0,0,0,.6)"     // dialog on top of a modal
   },
   "wineColors": {
     "rotwein": "#803039", "weisswein": "#f4ca4f", "rose": "#ffd1d8", "schaumwein": "#f3efaf",
@@ -90,132 +90,132 @@ Wine Tracker ist eine Flask-App mit klassischem Server-Rendering und einer handg
 
 ## Colors
 
-- **Kern-Tokens** siehe Theme-Matrix oben. `--accent2` ist in allen Sets dunkler als `--accent` und dient als **Hover-Fläche** für solide Accent-Elemente. Als Hover-**Textfarbe** ist `--accent2` im Dark-Mode verboten (zu dunkel auf dunklem Grund, Kontrast bis 1.9:1) - Hover-Text wechselt stattdessen auf `--text` oder `--accent`.
-- **Semantik:** `--danger`/`--success`/`--warning` ersetzen schrittweise die ~30 hardcodierten `#e74c3c`/`#27ae60`/`#e67e22`-Stellen; jede Verwendung bekommt damit automatisch die Light-Variante. Danger-Flächen (Delete-Button) nutzen die Light-Werte als BG mit `--on-accent`-Text.
-- **Hover-Tints:** `color-mix(in srgb, var(--accent) 10%, transparent)` ist der Standard-Tint für Listen-/Item-Hover. Schwarz-/Weiss-Alpha-Tints sind abgelöst (sie versagen je nach Modus; die Nav nutzt heute schwarzes Alpha im Dark-Mode - Migrationsliste).
-- **Overlays:** `--overlay` (Modal), `--overlay-strong` (Lightbox), `--overlay-soft` (Dialog über Modal). Keine weiteren Scrim-Werte.
-- **Weintyp-Farben** (`--wine-*`) sind Datenfarben für Ribbons, Dots, Charts - sie sind in allen Themes identisch und werden nicht für UI-Zustände verwendet. Ribbon-Text: `#333` auf hellen Typen (Weiss-/Rosé-/Schaumwein), sonst `#fff`.
-- **Theme-Vorschaufarben** (Settings-Dropdown) sind bewusst hardcodiert `[bg-dark, accent-dark, gold-dark]` - einzige erlaubte Hex-Duplikation, da sie alle Themes gleichzeitig zeigen.
+- **Core tokens:** see the theme matrix above. `--accent2` is darker than `--accent` in all sets and serves as the **hover surface** for solid accent elements. As a hover **text color**, `--accent2` is forbidden in dark mode (too dark on dark ground, contrast down to 1.9:1) - hover text switches to `--text` or `--accent` instead.
+- **Semantics:** `--danger`/`--success`/`--warning` progressively replace the ~30 hardcoded `#e74c3c`/`#27ae60`/`#e67e22` spots; every usage automatically gains the light variant. Danger surfaces (delete button) use the light values as background with `--on-accent` text.
+- **Hover tints:** `color-mix(in srgb, var(--accent) 10%, transparent)` is the standard tint for list/item hover. Black/white alpha tints are retired (they fail depending on mode; the nav still uses black alpha in dark mode - migration list).
+- **Overlays:** `--overlay` (modal), `--overlay-strong` (lightbox), `--overlay-soft` (dialog on top of a modal). No other scrim values.
+- **Wine type colors** (`--wine-*`) are data colors for ribbons, dots, charts - identical across all themes and never used for UI states. Ribbon text: `#333` on light types (white/rose/sparkling), otherwise `#fff`.
+- **Theme preview colors** (settings dropdown) are deliberately hardcoded `[bg-dark, accent-dark, gold-dark]` - the only permitted hex duplication, since they show all themes at once.
 
 ## Typography
 
-- **Familie:** System-Stack auf `body`; `font-family: inherit` auf allen Form-Controls (globale Regel - Migrationsliste). `monospace` nur für technische Identifier.
-- **Ziel-Skala** (12 Stufen): `.65 / .7 / .75 / .8 / .85 / .9 / .95 / 1 / 1.1 / 1.25 / 1.5 / 2rem`. Grössere Werte (2.5-4rem) nur für Icon-Platzhalter und Empty-States. Die Zwischenwerte des Bestands (`.72 .78 .82 .88 .92 .97 1.05 1.15 1.2rem`, `10px`) sind deprecated und werden beim Anfassen auf den nächsten Skalenwert gerundet.
-- **Rollen:** `.85rem` UI-Standard (Nav, Tabs, Tabellen, Chips) · `.9rem` Eingaben und Dialog-Buttons · `.8rem` Labels und Nebentext · `.7rem` Uppercase-Sektions-Titel (+ `letter-spacing .05em`) · `.75rem` Datenchips · `1.1rem` Modal-Header und Icon-Buttons.
-- **Gewichte:** 400 Fliesstext · 500 Navigation · 600 Buttons, Tabellen-Header, aktive Sekundärelemente · 700 Primär-Buttons, Karten-/Modal-Titel, aktive Navigation. 800 nur für Statistik-Grosszahlen.
-- **Uppercase-Label-Rezept:** `.7rem / 600 / uppercase / letter-spacing .05em / --muted` - gilt für alle Sektions-Titel (Settings, Filter, Tabelle vereinheitlichen → Migrationsliste).
+- **Family:** system stack on `body`; `font-family: inherit` on all form controls (global rule - migration list). `monospace` only for technical identifiers.
+- **Target scale** (12 steps): `.65 / .7 / .75 / .8 / .85 / .9 / .95 / 1 / 1.1 / 1.25 / 1.5 / 2rem`. Larger values (2.5-4rem) only for icon placeholders and empty states. The legacy in-between values (`.72 .78 .82 .88 .92 .97 1.05 1.15 1.2rem`, `10px`) are deprecated and get rounded to the nearest scale step when touched.
+- **Roles:** `.85rem` UI default (nav, tabs, tables, chips) - `.9rem` inputs and dialog buttons - `.8rem` labels and secondary text - `.7rem` uppercase section titles (+ `letter-spacing .05em`) - `.75rem` data chips - `1.1rem` modal headers and icon buttons.
+- **Weights:** 400 body text - 500 navigation - 600 buttons, table headers, active secondary elements - 700 primary buttons, card/modal titles, active navigation. 800 only for big statistic numbers.
+- **Uppercase label recipe:** `.7rem / 600 / uppercase / letter-spacing .05em / --muted` - applies to all section titles (unify settings, filter, table → migration list).
 
 ## Spacing & Layout
 
-- **Raster:** 4px-Basis; Skala `.25 / .5 / .75 / 1 / 1.25 / 1.5 / 2 / 2.5rem`. Komponenten-Feinwerte (`.35 .4 .6rem`) sind innerhalb von Komponenten-Rezepten erlaubt, neue Layout-Abstände kommen aus der Skala. px-Abstände nur für 1px-Linien und 2-6px-Mikrodetails.
-- **Kernrezepte:** Input-Padding `.55rem .75rem` · Button-Padding `0 1.2rem` (bei fester Höhe) bzw. `.6rem 1rem` · Card-Body `.75rem 1rem` · Modal-Header `1rem 1.25rem` · Modal-Body `1.25rem` (gap `.9rem`) · Modal-Footer `0 1.25rem 1.25rem` (gap `.75rem`) - gilt als Basisregel für ALLE Modals (Abweichler in Migrationsliste).
-- **Container:** Inhaltsseiten (Stats/Timeline) max-width 900px, padding 1.5rem. Karten-Grid `1.25rem 1.5rem`, gap 1rem, padding-bottom 5rem (FAB-Raum).
-- **Safe-Area:** `env(safe-area-inset-bottom)` an Tab-Bar, FAB und Chat-Seite - **ausser** `body.embedded` (HA-Ingress übernimmt die Safe-Area selbst).
+- **Grid:** 4px base; scale `.25 / .5 / .75 / 1 / 1.25 / 1.5 / 2 / 2.5rem`. Component fine values (`.35 .4 .6rem`) are allowed inside component recipes; new layout spacing comes from the scale. px spacing only for 1px lines and 2-6px micro details.
+- **Core recipes:** input padding `.55rem .75rem` - button padding `0 1.2rem` (with fixed height) or `.6rem 1rem` - card body `.75rem 1rem` - modal header `1rem 1.25rem` - modal body `1.25rem` (gap `.9rem`) - modal footer `0 1.25rem 1.25rem` (gap `.75rem`) - this is the base rule for ALL modals (deviations in the migration list).
+- **Containers:** content pages (stats/timeline) max-width 900px, padding 1.5rem. Card grid `1.25rem 1.5rem`, gap 1rem, padding-bottom 5rem (FAB space).
+- **Safe area:** `env(safe-area-inset-bottom)` on tab bar, FAB and chat page - **except** `body.embedded` (HA ingress handles the safe area itself).
 
 ## Shape (Radius)
 
-| Stufe | Wert | Verwendung |
+| Step | Value | Usage |
 |---|---|---|
-| container | `var(--radius)` = 12px | Karten, Modals, Panels, Stat-Cards, Chat-Panel |
-| popover | 10px | Popover, Dropdown-Listen, Tooltips, Chat-Bubbles, Akkordeon-Gruppen |
-| control | 8px | Buttons, Inputs, Selects, Toasts, Nav-Hover-Fläche, Segmente |
-| item | 6px | Listenzeilen-Hover, kleine Icon-Buttons in Kontexten, Bar-Tracks |
-| tag | 4px | Datenchips (card-meta/-extra), Food-Tags, Mini-Thumbnails |
-| pill | 999px | Zähl-Badges, Filter-Chips, Mengen-Badge |
-| circle | 50% | FAB, Spinner, Dots, Toggle-Knopf, runde Chat-Buttons |
+| container | `var(--radius)` = 12px | cards, modals, panels, stat cards, chat panel |
+| popover | 10px | popovers, dropdown lists, tooltips, chat bubbles, accordion groups |
+| control | 8px | buttons, inputs, selects, toasts, nav hover surface, segments |
+| item | 6px | list row hover, small icon buttons in context, bar tracks |
+| tag | 4px | data chips (card-meta/-extra), food tags, mini thumbnails |
+| pill | 999px | count badges, filter chips, quantity badge |
+| circle | 50% | FAB, spinners, dots, toggle knob, round chat buttons |
 
-Ausreisser im Bestand (20px qty-badge, 24px Toggle-Slider, 16px-Badge mit r8, 12px-Literal im Login) → Migrationsliste; Toggle behält seine Kapselform über `pill`.
+Legacy outliers (20px qty badge, 24px toggle slider, 16px badge with r8, 12px literal in login) → migration list; the toggle keeps its capsule shape via `pill`.
 
 ## Elevation & Depth
 
-| Stufe | Wert | Verwendung |
+| Step | Value | Usage |
 |---|---|---|
-| elevation | `var(--shadow)` | Header, Karten-Hover, Modals, Dropdown-Listen |
-| floating | `0 8px 24px rgba(0,0,0,.4)` | Popover, Tooltips (frei schwebend über Inhalt) |
-| toast | `0 4px 16px rgba(0,0,0,.3)` | Toasts, FAB-Ruhezustand |
+| elevation | `var(--shadow)` | header, card hover, modals, dropdown lists |
+| floating | `0 8px 24px rgba(0,0,0,.4)` | popovers, tooltips (floating above content) |
+| toast | `0 4px 16px rgba(0,0,0,.3)` | toasts, FAB resting state |
 
-Sonderfälle bleiben benannt: Lightbox-Bild `0 0 40px .6`, Chat-Panel `0 8px 32px .45`, Fokus-/Auswahl-Ringe über `box-shadow: 0 0 0 1-2px`. Die übrigen Streuwerte (Nav-Menu `.15`, Stock-Tooltip `.25`, Ribbon) werden auf die drei Stufen migriert.
+Named special cases remain: lightbox image `0 0 40px .6`, chat panel `0 8px 32px .45`, focus/selection rings via `box-shadow: 0 0 0 1-2px`. The remaining stray values (nav menu `.15`, stock tooltip `.25`, ribbon) get migrated onto the three steps.
 
 ## Motion
 
-- **Dauern:** 150ms Farb-/Text-Hover · 200ms Standard (Border, Transform, Fläche) · 250ms Layoutwechsel (Modalbreite, Panels, `--kb-inset`) · 400ms Ein-/Ausblenden (Toasts, Bilder). Laufende Animationen: Spinner .8-1s linear, Chat-Dots 1.2s, Shimmer 1.8s, Glow 2s.
-- **Easing:** `ease` als Default, `linear` nur für Endlos-Rotation.
-- **Regeln:** `transition: all` ist verboten (Eigenschaften explizit benennen - 12 Bestandsstellen in Migrationsliste). `@media (prefers-reduced-motion: reduce)` deaktiviert Shimmer, Glow, Scale-Effekte und Transitions > 200ms - **neu, Pflicht** (Migrationsliste).
+- **Durations:** 150ms color/text hover - 200ms standard (border, transform, surface) - 250ms layout changes (modal width, panels, `--kb-inset`) - 400ms fade in/out (toasts, images). Running animations: spinner .8-1s linear, chat dots 1.2s, shimmer 1.8s, glow 2s.
+- **Easing:** `ease` as default, `linear` only for endless rotation.
+- **Rules:** `transition: all` is forbidden (name properties explicitly). `@media (prefers-reduced-motion: reduce)` disables shimmer, glow, scale effects and transitions - mandatory (implemented as a global reduce block).
 
 ## Components
 
 ### Buttons
 
-| Rolle | Kanonische Klasse | Rezept |
+| Role | Canonical class | Recipe |
 |---|---|---|
-| Primär | `.btn-submit` | BG `--accent`, Text `--on-accent`, h38, r8, `.95rem/700`, Hover BG `--accent2`, `:disabled` opacity .5 |
-| Sekundär | `.btn-cancel` | BG `--bg`, 1px `--border`, Text `--text`, r8, `.9rem/600`, Hover Border `--accent` + BG `--surface` |
-| Danger | `.btn-delete` | BG `--danger`(light-Wert), Text `--on-accent`, sonst wie Sekundär-Geometrie |
-| Icon (Header) | 34×34 (mobil 30×30), outlined, r8, Icon 1.1rem | Hamburger, Theme, Filter, Chat-Header |
-| Icon (Form) | 38×38, r8 bzw. r6 im Bildkontext | Reload-Trigger, Img-Actions |
-| FAB | 56er Kreis, `--accent`/`--on-accent`, shadow toast, Hover `--accent2` + scale 1.05, Active scale .92 | |
-| Text-Button | ohne BG, `--gold` oder `--muted`, Hover-Tint accent 10% | Toast-Undo, Popover-Buttons |
+| Primary | `.btn-submit` | BG `--accent`, text `--on-accent`, h38, r8, `.95rem/700`, hover BG `--accent2`, `:disabled` opacity .5 |
+| Secondary | `.btn-cancel` | BG `--bg`, 1px `--border`, text `--text`, r8, `.9rem/600`, hover border `--accent` + BG `--surface` |
+| Danger | `.btn-delete` | BG `--danger` (light value), text `--on-accent`, otherwise secondary geometry |
+| Icon (header) | 34x34 (mobile 30x30), outlined, r8, icon 1.1rem | hamburger, theme, filter, chat header |
+| Icon (form) | 38x38, r8 or r6 in image context | reload trigger, image actions |
+| FAB | 56px circle, `--accent`/`--on-accent`, shadow toast, hover `--accent2` + scale 1.05, active scale .92 | |
+| Text button | no BG, `--gold` or `--muted`, hover tint accent 10% | toast undo, popover buttons |
 
-`.btn-primary`/`.btn-secondary` (adv-Filter) und `.ai-btn` sind **deprecated Aliase** - sie migrieren auf das Trio oben. Pflichtzustände überall: `:active`, `:disabled`, `:focus-visible`.
+`.btn-primary`/`.btn-secondary` (adv filter) and `.ai-btn` are **deprecated aliases** - they migrate onto the trio above. Mandatory states everywhere: `:active`, `:disabled`, `:focus-visible`.
 
 ### Inputs & Controls
 
-- **Rezept:** BG `--bg`, 1px `--border`, r8, h38, Padding `.55rem .75rem`, `.9rem`, `font-family: inherit`. Focus: `border-color: --accent` **plus** `:focus-visible`-Ring (`0 0 0 2px color-mix(accent 40%)`) - Ring neu, Pflicht (Migrationsliste). `--surface` als Input-BG ist deprecated (6 Stellen).
-- Technische Identifier (Keys, Modell-IDs): zusätzlich `monospace .85rem`.
-- Toggle: 44×24 Kapsel, aus `--muted`, an `--accent`; Radios/Checkboxen nativ mit `accent-color: --accent`; Sterne-Input 1.5rem `--border`→`--gold`.
-- Dropzonen (Bild-Upload): gestrichelt, Hover Border `--accent` + Tint 5%.
+- **Recipe:** BG `--bg`, 1px `--border`, r8, h38, padding `.55rem .75rem`, `.9rem`, `font-family: inherit`. Focus: `border-color: --accent` **plus** `:focus-visible` ring (`0 0 0 2px color-mix(accent 40%)`) - implemented as a global rule. `--surface` as input BG is deprecated (6 spots).
+- Technical identifiers (keys, model IDs): additionally `monospace .85rem`.
+- Toggle: 44x24 capsule, off `--muted`, on `--accent`; radios/checkboxes native with `accent-color: --accent`; star input 1.5rem `--border`→`--gold`.
+- Dropzones (image upload): dashed, hover border `--accent` + tint 5%.
 
 ### Modals
 
-- Basis: Overlay `--overlay` z200, `.modal` auf `--surface` mit `--radius`, `--shadow`, max-height 90vh; Header sticky `1rem 1.25rem/1.1rem/700`; Body `1.25rem` gap `.9rem`; Footer `0 1.25rem 1.25rem` gap `.75rem`.
-- **Breitenraster:** 360 (Bestätigungen) · 480 (Standard: View, Settings, Name-Dialog) · 640 (Advanced Filter, Import) · 900 (ab min-width 700: Wine/View/Settings mit Foto- bzw. Breitlayout). 560/600-Zwischenwerte migrieren auf das Raster.
-- **Mobil:** Settings und Advanced Filter gehen unter 500/600px in Fullscreen (`100dvh`, r0) - das ist das Zielmuster für alle komplexen Modals; Bestätigungs-Modals bleiben zentriert.
-- Settings-Modal: top-verankert (10vh), Tab-Leiste zwischen Header und Body, fixer Konto-Footer.
-- Dialog über Modal (Name-Dialog): Overlay `--overlay-soft`, z220.
+- Base: overlay `--overlay` z200, `.modal` on `--surface` with `--radius`, `--shadow`, max-height 90vh; header sticky `1rem 1.25rem/1.1rem/700`; body `1.25rem` gap `.9rem`; footer `0 1.25rem 1.25rem` gap `.75rem`.
+- **Width grid:** 360 (confirmations) - 480 (standard: view, settings, name dialog) - 640 (advanced filter, import) - 900 (from min-width 700: wine/view/settings with photo or wide layout). The 560/600 in-between values migrate onto the grid.
+- **Mobile:** settings and advanced filter go fullscreen below 500/600px (`100dvh`, r0) - this is the target pattern for all complex modals; confirmation modals stay centered.
+- Settings modal: top-anchored (10vh), tab bar between header and body, fixed account footer.
+- Dialog on top of a modal (name dialog): overlay `--overlay-soft`, z220.
 
-### Dropdowns, Popover, Tooltips
+### Dropdowns, Popovers, Tooltips
 
-- **Dropdown-Liste** (Theme, Modell, Filter): BG `--surface`, r10, `--shadow`; Item `.6rem .8rem`, Hover `--bg`, Active accent-Tint 8%; im Settings-Modal `position: fixed` z10000. Filter-Dropdown migriert von `--bg` auf `--surface`.
-- **Popover** (Qty, Reload, Vivino-ID): BG `--surface`, r10, shadow floating, Padding nach Inhalt (.3-.75rem).
-- **Tooltip** (Charts): wie Popover, z500.
+- **Dropdown list** (theme, model, filter): BG `--surface`, r10, `--shadow`; item `.6rem .8rem`, hover `--bg`, active accent tint 8%; inside the settings modal `position: fixed` z10000. The filter dropdown migrates from `--bg` to `--surface`.
+- **Popover** (qty, reload, Vivino ID): BG `--surface`, r10, shadow floating, padding by content (.3-.75rem).
+- **Tooltip** (charts): like popover, z500.
 
 ### Toasts
 
-- Eine Komponente, unten zentriert (bottom 2rem), BG `--surface`, Border, r8, shadow toast, z9999, Fade 400ms.
-- Varianten: **Undo** (Meldung + Gold-Textbutton, 6s) · **Fehler** (`.error`: Meldung in `--danger`, kein Button, 4s) · **Erfolg** (Reload-Toast: BG `--gold`, Text `--bg`, 2.5s). Reload- und Undo-Toast migrieren auf ein gemeinsames Rezept.
-- Mobil: Toasts rücken über die Tab-Bar (bottom 2rem + 56px) - Migrationsliste.
+- One component, bottom-centered (bottom 2rem), BG `--surface`, border, r8, shadow toast, z9999, fade 400ms.
+- Variants: **undo** (message + gold text button, 6s) - **error** (`.error`: message in `--danger`, no button, 4s) - **success** (reload toast: BG `--gold`, text `--bg`, 2.5s). Reload and undo toast migrate onto one shared recipe.
+- Mobile: toasts move above the tab bar (bottom 2rem + 56px) - migration list.
 
 ### Tabs & Navigation
 
-- Header 56px sticky z100; Desktop-Nav `.85rem/500`, aktiv 700 `--text`; unter 800px Hamburger-Menü; unter 600px Bottom-Tab-Bar (56px + Safe-Area, Icon 1.25rem, aktiv `--accent/700`).
-- Inhalts-Tabs (Settings): Icon + Label `.85rem/600`, aktiver Tab `--accent` mit 2px-Unterstrich, horizontale Wischleiste ohne sichtbaren Scrollbalken.
+- Header 56px sticky z100; desktop nav `.85rem/500`, active 700 `--text`; below 800px hamburger menu; below 600px bottom tab bar (56px + safe area, icon 1.25rem, active `--accent/700`).
+- Content tabs (settings): icon + label `.85rem/600`, active tab `--accent` with 2px underline, horizontal swipe strip without visible scrollbar.
 
-### Chips, Badges, Karten, Tabellen
+### Chips, Badges, Cards, Tables
 
-- Datenchips: BG `--bg`, r4, `.75rem`; Zähl-/Status-Badges: Pille, `--accent`/`--on-accent`, `.72→.75rem`; Mengen-Badge auf Karten: dunkles Overlay + blur, `--gold` wenn gefüllt, klickbar (Popover).
-- Karte: `--surface`, 1px Border, `--radius`, Hover translateY(-2px) + `--shadow`; `.empty` opacity .5 dashed; Ribbon diagonal mit `--wine-*`.
-- Tabelle: TH `.75rem/600` uppercase `--muted`, Zeilen-Hover accent-Tint 8%, responsive Spalten-Ausblendung (900/700/500).
-- Empty-State: zentriert, Icon 4rem, Logo 96px opacity .5 - eine Klasse für alle Seiten.
+- Data chips: BG `--bg`, r4, `.75rem`; count/status badges: pill, `--accent`/`--on-accent`, `.72→.75rem`; quantity badge on cards: dark overlay + blur, `--gold` when filled, clickable (popover).
+- Card: `--surface`, 1px border, `--radius`, hover translateY(-2px) + `--shadow`; `.empty` opacity .5 dashed; ribbon diagonal with `--wine-*`.
+- Table: TH `.75rem/600` uppercase `--muted`, row hover accent tint 8%, responsive column hiding (900/700/500).
+- Empty state: centered, icon 4rem, logo 96px opacity .5 - one class for all pages.
 
 ## Responsive
 
-Breakpoints (max-width, Bestand = Ziel): **500** Phone-Verdichtung + Fullscreen-Modals · **600** Bottom-Tab-Bar, FAB-Versatz, Grid 2-spaltig · **700** Tabellen-Trim 2 / min-width 700 breite Modals · **768** Chat-Sidebar als Overlay · **800** Nav-Collapse · **900** Tabellen-Trim 1. `100dvh` ist der Zielwert für Fullscreen-Höhen (vh-Reste migrieren). JS-Breakpoints müssen den CSS-Werten entsprechen (600/768).
+Breakpoints (max-width, current = target): **500** phone condensing + fullscreen modals - **600** bottom tab bar, FAB offset, 2-column grid - **700** table trim 2 / min-width 700 wide modals - **768** chat sidebar as overlay - **800** nav collapse - **900** table trim 1. `100dvh` is the target value for fullscreen heights (migrate vh leftovers). JS breakpoints must match the CSS values (600/768).
 
 ## Accessibility
 
-- **Kontrast:** AA in allen 12 Sets. Offene Verstösse (gerechnet): Weiss auf `--accent` in vineyard/champagne/slate/HA dark (2.3-3.7) und vineyard/champagne light; `--muted` knapp in classic/slate dark; `--accent2` als Hover-Text (bis 1.9, abgeschafft per Colors-Regel); `#fff` auf `--wine-dessertwein`/`--wine-empty` Ribbons; Semantikfarben auf Weiss (durch Light-Paare gelöst). → Accent-Justierung pro betroffenem Theme in der Migrationsliste.
-- **Fokus:** `:focus-visible`-Ring für alle interaktiven Elemente (neu, Pflicht). `outline: none` ohne Ersatz ist verboten. Nicht-native Klickziele (div/tr mit onclick) müssen per Tastatur erreichbar sein: `button`-Element oder `role` + `tabindex="0"` + Enter/Space (siehe Gap 13).
-- **Touch:** Mindest-Zielfläche 34px (Header-Icons mobil 30px ist die dokumentierte Untergrenze); Hover nur hinter `@media (hover: hover)`.
-- **Motion:** `prefers-reduced-motion` respektieren (siehe Motion).
-- Sprache: UI in 7 Sprachen (`translations.py`), Deutsch per Default, Du-Form kleingeschrieben im UI.
+- **Contrast:** AA in all 12 sets. Open violations (computed): white on `--accent` in vineyard/champagne/slate/HA dark (2.3-3.7) and vineyard/champagne light; `--muted` borderline in classic/slate dark; `--accent2` as hover text (down to 1.9, retired per colors rule); `#fff` on `--wine-dessertwein`/`--wine-empty` ribbons; semantic colors on white (solved by the light pairs). → accent adjustment per affected theme in the migration list.
+- **Focus:** `:focus-visible` ring for all interactive elements (mandatory, implemented globally). `outline: none` without replacement is forbidden. Non-native click targets (div/tr with onclick) must be keyboard-reachable: `button` element or `role` + `tabindex="0"` + Enter/Space (see gap 13).
+- **Touch:** minimum target size 34px (header icons 30px on mobile is the documented floor); hover only behind `@media (hover: hover)`.
+- **Motion:** respect `prefers-reduced-motion` (see Motion).
+- Language: UI in 7 languages (`translations.py`), German by default; the German informal "du" forms are lowercase in the UI.
 
 ## Voice & Tone
 
-Knapp, funktional, freundlich - keine Ausrufezeichen-Dichte, keine Marketing-Floskeln. Fehlertexte benennen das Problem und den nächsten Schritt ("Hinterlegt - leer lassen zum Behalten"). Zahlen im Schweizer Format, Währung `CHF 12.50`. Alle sichtbaren Strings laufen über `translations.py` (7 Sprachen) - keine hardcodierten UI-Texte in Templates/JS.
+Concise, functional, friendly - no exclamation-mark density, no marketing fluff. Error texts name the problem and the next step ("Stored - leave empty to keep"). Numbers in Swiss format, currency `CHF 12.50`. All visible strings go through `translations.py` (7 languages) - no hardcoded UI texts in templates/JS.
 
 ## Code Snippets
 
-Ziel-Zustand der neuen Tokens (einmalig in `style.css` zu ergänzen, dann Hardcodes migrieren):
+Semantic tokens as implemented in `style.css` (dark base in `:root`, light pairs on `html.light`):
 
 ```css
 :root {
@@ -236,28 +236,28 @@ html.light {
 
 ## Known Gaps & Migration
 
-Priorisierte Liste - abzuarbeiten beim nächsten Anfassen der jeweiligen Stelle, nicht als Big Bang:
+Prioritized list - to be worked off the next time the spot is touched, not as a big bang:
 
-1. **Semantik-Tokens einziehen:** `:root`-Block oben ergänzen; ~30 Hardcodes (`#e74c3c #c0392b #27ae60 #e67e22 #f39c12 #fdecea #5a1010`) auf `--danger/--success/--warning` migrieren (Light-Varianten kommen gratis mit).
-2. **Kontrast-Fixes:** Accent-Töne von vineyard/champagne/slate/HA dark (und vineyard/champagne light) Richtung 4.5:1 gegen Weiss justieren; `--muted` in classic/slate dark leicht aufhellen; Ribbon-Textfarben für dessertwein/empty prüfen. Neu gerechnet (Audit 18.10.2026): Accent als Text auf `--surface` in classic dark (3.2) und burgundy dark (3.6); `--gold` als Text in classic/champagne/vineyard/slate/HA light (4.0-4.3); `--muted` in vineyard/champagne light (4.3); Erfolg-Toast (`--bg` auf `--gold`) in classic light 3.6; Qty-Badge (dunkler BG, Light-Textwerte) bis 1.6; Toggle-Track `--muted` in HA dark 2.8; Sterne-Leerzustand `--border` auf `--surface` unter 3:1. → braucht Entscheide: Gold-Text-Variante für Light, Accent nur als Fläche/Unterstrich oder `--accent-text`, fester Dunkel-Textwert für die Qty-Badge.
-3. **Button-Konsolidierung:** `.btn-primary`/`.btn-secondary` (adv-Filter) und `.ai-btn` auf `.btn-submit`/`.btn-cancel` zurückführen; Button-Höhe einheitlich 38 (Import-42er); `white`→`--on-accent`.
-4. **Focus-visible:** Ring-Rezept global einführen; alle `outline: none`-Stellen nachrüsten.
-5. **Input-Vereinheitlichung:** 6 `--surface`-Inputs auf `--bg`; Höhen/Fontgrössen der Chat-/adv-Inputs auf 38/.9rem; globale `font-family: inherit`-Regel für Controls; `login.html`-Duplikat entfernen.
-6. **prefers-reduced-motion** einführen; 12× `transition: all` auflösen.
-7. **Hover-Politik:** `--accent2` als Hover-Textfarbe ersetzen (4 Stellen); schwarze Alpha-Tints der Nav durch `color-mix`-Tint; Hover generell hinter `(hover: hover)`.
-8. **Z-Index/Schatten aufräumen:** Filter-Dropdown von z200 trennen (kollidiert mit Modal); Streuschatten auf die 3 Stufen (nur 6 von 14 Literalen auf Stufe, u.a. FAB-Ruhe/Hover/Active, Chat-Sidebar); Filter-Dropdown-BG auf `--surface`; Leiter-fremde Werte 5/10/301 dokumentieren oder mappen, Reload-/Vivino-Popover von z100 auf 150.
-9. **Toter Code:** `.qty-btn/.qty-controls`, `.step-link`, `.theme-segmented`, `a.btn-cancel[href*="logout"]`-Selektor entfernen; undefinierte `--bg-soft`/`--text-muted` ersetzen.
-10. **Toast-Vereinheitlichung** (Reload+Undo ein Rezept) inkl. Mobile-Offset über der Tab-Bar.
-11. **Seiten-Sonderstile:** Inline-`<style>` von `login.html`, `timeline.html`, `_import_preview_modal.html` in `style.css` überführen (px→rem).
-12. **Nicht validiert:** Landing Page (`docs/`) bleibt bewusst ein eigenes System; `design.html` (Living Styleguide) ist noch nicht auf die Wine-Tracker-Tokens umgebaut; Gold-Glow nutzt Classic-Gold statt `--gold` (Entscheid offen: pro Theme oder fix).
+1. ~~**Introduce semantic tokens**~~ **Done (2026-10-18):** `:root` block added; ~30 hardcodes migrated to `--danger/--success/--warning/--on-accent/--overlay*`. Remaining: `.btn-delete` fill colors (`#c0392b`/`#e74c3c`) await the `--danger-hover` decision in gap 14.
+2. **Contrast fixes:** adjust accent tones of vineyard/champagne/slate/HA dark (and vineyard/champagne light) towards 4.5:1 against white; lighten `--muted` slightly in classic/slate dark; review ribbon text colors for dessertwein/empty. Newly computed (audit 2026-10-18): accent as text on `--surface` in classic dark (3.2) and burgundy dark (3.6); `--gold` as text in classic/champagne/vineyard/slate/HA light (4.0-4.3); `--muted` in vineyard/champagne light (4.3); success toast (`--bg` on `--gold`) in classic light 3.6; qty badge (dark BG, light text values) down to 1.6; toggle track `--muted` in HA dark 2.8; empty star state `--border` on `--surface` below 3:1. → needs decisions: gold text variant for light, accent only as surface/underline or `--accent-text`, fixed dark text value for the qty badge.
+3. **Button consolidation:** fold `.btn-primary`/`.btn-secondary` (adv filter) and `.ai-btn` back into `.btn-submit`/`.btn-cancel`; unify button height at 38 (the import 42px one); `white` → `--on-accent` (done for color usages; class consolidation open).
+4. ~~**Focus-visible**~~ **Done (2026-10-18):** global ring rule plus input ring recipe introduced; all `outline: none` spots retrofitted. Keyboard reachability of non-native targets remains gap 13.
+5. **Input unification:** 6 `--surface` inputs onto `--bg`; heights/font sizes of chat/adv inputs onto 38/.9rem; global `font-family: inherit` rule for controls; remove the `login.html` duplicate.
+6. ~~**prefers-reduced-motion**~~ **Done (2026-10-18):** global reduce block added; 12x `transition: all` and the toggle `.3s` replaced with explicit properties on the motion scale.
+7. **Hover policy:** replace `--accent2` as hover text color (4 spots); replace the nav's black alpha tints with the `color-mix` tint; put hover behind `(hover: hover)` in general.
+8. **Z-index/shadow cleanup:** separate the filter dropdown from z200 (collides with modal); stray shadows onto the 3 steps (only 6 of 14 literals on a step, among them FAB rest/hover/active, chat sidebar); filter dropdown BG onto `--surface`; document or map the off-ladder values 5/10/301, reload/Vivino popovers from z100 to 150.
+9. **Dead code:** remove `.qty-btn/.qty-controls`, `.step-link`, `.theme-segmented`, the `a.btn-cancel[href*="logout"]` selector; replace the undefined `--bg-soft`/`--text-muted`.
+10. **Toast unification** (reload + undo as one recipe) incl. mobile offset above the tab bar.
+11. **Page-level special styles:** move the inline `<style>` of `login.html`, `timeline.html`, `_import_preview_modal.html` into `style.css` (px → rem).
+12. **Not validated:** the landing page (`docs/`) deliberately stays its own system; `design.html` (living styleguide) is not yet rebuilt on the Wine Tracker tokens; the gold glow uses classic gold instead of `--gold` (decision open: per theme or fixed).
 
-Ergänzt nach Konsistenz-Audit vom 18.10.2026 (drei Agenten: Tokens/Skalen, Komponenten, Hardcodes/A11y):
+Added after the consistency audit of 2026-10-18 (three agents: tokens/scales, components, hardcodes/a11y):
 
-13. **Tastatur-Erreichbarkeit:** Klickziele als `div`/`td`/`tr` mit `onclick` ohne `tabindex`/`role`/Key-Handler - Karten (Bild, Body, Qty-Badge), Tabellenzeilen, Theme- und Model-Dropdown-Items, Source-Optionen im Wein-Modal, Chat-Session-Liste, Foto-Panels. Sterne-Rating (`display: none`) und Toggle-Switches (`opacity: 0`) haben keinen sichtbaren Fokus. → auf `button` bzw. `role` + `tabindex` + Enter/Space umstellen, Fokus-Ring per Sibling-Selektor auf Slider/Sterne.
-14. **Button-Zustände:** Das kanonische Trio hat kein `:disabled`/`:active`, obwohl der Code `disabled` setzt (Export/Import). `.btn-delete:hover` (`#e74c3c` mit Weiss) liegt bei 3.8:1. → `:disabled` opacity .5 global, Hover aus dem Light-Danger ableiten (Entscheid: `--danger-hover`).
-15. **Schliessverhalten vereinheitlichen:** ESC im Filter-Namensdialog schliesst beide Overlays (Bubbling-Bug, `_nameDialogResolve` bleibt hängen); ESC schliesst Lightbox und View-Modal gleichzeitig; Close-/Overlay-/ESC-Logik ist 4x kopiert (index/stats/timeline/chat) und leicht verschieden; kein Dropdown/Popover schliesst per ESC. Native `confirm()`/`alert()` (Chat-Delete, Filter, Foto) werden im HA-Ingress/iOS blockiert - durch 360er-Bestätigungs-Modal bzw. Error-Toast ersetzen. → eine gemeinsame Implementierung in `theme.js`, eine Ebene pro ESC.
-16. **Icon-Buttons und Touch-Targets:** Es fehlt ein Ghost-Icon-Button-Rezept (borderless, Mindestfläche 34px, `aria-label` Pflicht). Ist-Familien: `.modal-close` (~13x21), `.chat-header-btn` (28x28), `.chat-session-delete` (~23), `.chat-image-remove`, `.search-clear`, `.adv-filter-preset-edit/-delete`, `.adv-cond-chip` (~28), `.adv-cond-op/-input` (~31 statt 38), `.filter-option` (~29). `.chat-send`/`.chat-upload-btn` 36 statt 34/38.
-17. **Skalen-Rundung beim Anfassen:** ~45 font-size-Deklarationen off-scale (Cluster .72/.78/.82/.88/1.05/1.15/1.2rem, dazu .55/.6/1.3/1.4/1.6/1.8rem) auf die nächste Stufe runden; ~73 Abstände ausserhalb Raster (Cluster .15/.2/.3/.45/.65/.7/.8/.85rem) plus px-Reste (`.nav-menu-item` 12px 20px u.a.); Motion-Fremdwerte .3s (Toggle) und .6s (Chart-Fill) auf Skala; `@media (max-width: 420px)` auf 500; `100vh`-Reste auf `dvh`.
-18. **Tote Hex-Fallbacks und Alpha-Tints:** `var(--x, #hex)`-Fallbacks an ~14 Stellen entfernen (Tokens existieren immer, Fallbacks sind im Light-Mode falsch); Schwarz-/Weiss-Alpha-Hover ausserhalb der Nav (`.filter-option`, Chart-Tooltip, `wine-list-link`, Vivino-Thumb) auf `color-mix(accent 10%)`; Chat-Code-BG `rgba(0,0,0,.08)` (in Dark unsichtbar) auf `--empty`; Bild-Overlay-Kontrollen (Lightbox-Close, img-action) brauchen ein Token (`--overlay-control`, Entscheid offen).
-19. **Rezept-Drift Kleinteile:** Zähl-Badges (`.filter-btn-badge` r8, `.adv-filter-badge/-group-badge` r10) → Pille 999px; `.modal-footer` hat keine Basisregel (4 Footer-Muster) → `0 1.25rem 1.25rem`, gap .75rem; Sektions-Titel in 5 Varianten → `.7rem/600/uppercase/.05em/--muted`; Daten-Chips in 4 Padding-Varianten → ein Chip-Rezept; `.stock-tooltip` r8/z10 → Popover-Rezept; `.taste-bar` r3 → 6px; FAB 1.6rem; `.reload-toast.neutral` bei der Toast-Zusammenführung (Gap 10) streichen, Fehler = `.error`-Variante; Fullscreen-Mobile auch für Wein-/View-/Import-Modal (Zielmuster).
-20. **Hardcodierte UI-Strings:** `login.html` (Sign in, Username, Password, Fehlertext), `title`-Attribute (Rotate, Delete, Past drink window), `'Delete photo?'` (wine-modal.js), Fallback `'No conversations yet'` → über `translations.py` (Voice-Regel).
+13. **Keyboard reachability:** click targets implemented as `div`/`td`/`tr` with `onclick` and no `tabindex`/`role`/key handler - cards (image, body, qty badge), table rows, theme and model dropdown items, source options in the wine modal, chat session list, photo panels. Star rating (`display: none`) and toggle switches (`opacity: 0`) have no visible focus. → switch to `button` or `role` + `tabindex` + Enter/Space, focus ring via sibling selector on slider/stars.
+14. **Button states:** the canonical trio has no `:disabled`/`:active`, although the code does set `disabled` (export/import). `.btn-delete:hover` (`#e74c3c` with white) sits at 3.8:1. → global `:disabled` opacity .5, derive hover from the light danger value (decision: `--danger-hover`).
+15. **Unify close behavior:** ESC in the filter name dialog closes both overlays (bubbling bug, `_nameDialogResolve` is left dangling); ESC closes lightbox and view modal at the same time; the close/overlay/ESC logic is copied 4x (index/stats/timeline/chat) with slight differences; no dropdown/popover closes on ESC. Native `confirm()`/`alert()` (chat delete, filter, photo) are blocked in HA ingress/iOS - replace with the 360px confirmation modal or the error toast. → one shared implementation in `theme.js`, one layer per ESC.
+16. **Icon buttons and touch targets:** a ghost icon button recipe is missing (borderless, minimum target 34px, `aria-label` mandatory). Current families: `.modal-close` (~13x21), `.chat-header-btn` (28x28), `.chat-session-delete` (~23), `.chat-image-remove`, `.search-clear`, `.adv-filter-preset-edit/-delete`, `.adv-cond-chip` (~28), `.adv-cond-op/-input` (~31 instead of 38), `.filter-option` (~29). `.chat-send`/`.chat-upload-btn` 36 instead of 34/38.
+17. **Scale rounding when touched:** ~45 font-size declarations off-scale (clusters .72/.78/.82/.88/1.05/1.15/1.2rem, plus .55/.6/1.3/1.4/1.6/1.8rem) round to the nearest step; ~73 spacings off-grid (clusters .15/.2/.3/.45/.65/.7/.8/.85rem) plus px leftovers (`.nav-menu-item` 12px 20px and others); motion stray value .6s (chart fill) onto the scale; `@media (max-width: 420px)` onto 500; `100vh` leftovers onto `dvh`.
+18. **Dead hex fallbacks and alpha tints:** remove the `var(--x, #hex)` fallbacks at ~14 spots (the tokens always exist; the fallbacks are wrong in light mode); black/white alpha hover outside the nav (`.filter-option`, chart tooltip, `wine-list-link`, Vivino thumb) onto `color-mix(accent 10%)`; chat code BG `rgba(0,0,0,.08)` (invisible in dark) onto `--empty`; image overlay controls (lightbox close, img actions) need a token (`--overlay-control`, decision open).
+19. **Recipe drift, small items:** count badges (`.filter-btn-badge` r8, `.adv-filter-badge/-group-badge` r10) → pill 999px; `.modal-footer` has no base rule (4 footer patterns) → `0 1.25rem 1.25rem`, gap .75rem; section titles in 5 variants → `.7rem/600/uppercase/.05em/--muted`; data chips in 4 padding variants → one chip recipe; `.stock-tooltip` r8/z10 → popover recipe; `.taste-bar` r3 → 6px; FAB 1.6rem; drop `.reload-toast.neutral` during the toast merge (gap 10), errors = `.error` variant; fullscreen mobile also for the wine/view/import modal (target pattern).
+20. **Hardcoded UI strings:** `login.html` (Sign in, Username, Password, error text), `title` attributes (Rotate, Delete, Past drink window), `'Delete photo?'` (wine-modal.js), fallback `'No conversations yet'` → through `translations.py` (voice rule).
