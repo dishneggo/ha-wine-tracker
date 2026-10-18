@@ -204,7 +204,7 @@ APP_VERSION = "1.11.0"
 HA_OPTIONS = load_options()
 
 # Persist data in /share so it survives app restarts/updates
-# Falls /share nicht existiert (lokale Entwicklung), nutze ./data stattdessen
+# If /share does not exist (local development), use ./data instead
 # DATA_DIR ENV override enables standalone Docker deployment
 DATA_DIR = os.environ.get("DATA_DIR",
     "/share/wine-tracker" if os.path.isdir("/share")
@@ -587,7 +587,7 @@ def init_db():
             )
         """)
 
-        # Backfill: insert 'added' entries for existing wines (only on first migration)
+        # Backfill: insert 'added' entries for existing wines (whenever timeline is empty)
         log_count = db.execute("SELECT COUNT(*) FROM timeline").fetchone()[0]
         if log_count == 0:
             wines = db.execute("SELECT id, quantity, added FROM wines").fetchall()

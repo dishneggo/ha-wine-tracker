@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    Wine Tracker - Unified Stylesheet
-   Shared between index.html and stats.html
+   Shared by all pages
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /* ── Theme Variables ───────────────────────────────────────────────────────── */
@@ -354,7 +354,6 @@ html.light .filter-option:hover { background: rgba(0,0,0,.05); }
 
   /* Push content above tab bar */
   body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 4px); }
-  /* FAB override: moved after base .fab definition (line ~435) for specificity */
 
   /* HA ingress already keeps the frame above the home indicator -
      skip the extra safe-area inset inside the embedded app */
@@ -1236,9 +1235,9 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 }
 
 /* Uniform button size for Export / Import / Logout actions.
-   min-width ensures short labels (Abmelden, Datei wählen) stretch to
-   match the longest label (Sicherung herunterladen). display:inline-block
-   is required because width/min-width has no effect on inline a/label. */
+   min-width ensures short labels stretch to match the longest label.
+   display:inline-block is required because width/min-width has no
+   effect on inline a/label. */
 .data-action-btn,
 #settingsModal .settings-section a.btn-cancel[href*="logout"] {
   display: inline-block; box-sizing: border-box;
@@ -1860,7 +1859,6 @@ html.light a.wine-list-link:hover { background: rgba(0,0,0,.04); }
 .theme-dropdown-item.active { background: color-mix(in srgb, var(--accent) 8%, transparent); font-weight: 600; }
 .theme-dropdown-item .dd-check { margin-left: auto; color: var(--gold); font-size: 1.1rem; }
 
-/* (Stats empty state now reuses .empty-state from Index) */
 
 /* ── No-Scroll Lock (Chat Panel open) ────────────────────────────────────────── */
 body.no-scroll { overflow: hidden; }
@@ -2400,7 +2398,6 @@ body.embedded .chat-fullpage { bottom: calc(56px + var(--kb-inset)); }
   border-radius: 10px;
 }
 
-/* Preset section (populated in a later commit) */
 .adv-filter-presets {
   padding: .6rem .8rem;
   background: color-mix(in srgb, var(--accent2) 6%, transparent);

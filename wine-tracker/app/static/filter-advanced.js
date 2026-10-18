@@ -85,9 +85,8 @@
   };
 
   function apiBase() {
-    // INGRESS is declared via `const INGRESS = '{{ ingress }}'` in index.html.
-    // Because const doesn't attach to window, reach it via eval from the outer
-    // script scope - but fall back gracefully if it doesn't exist.
+    // index.html sets window.INGRESS; the typeof check covers pages that
+    // only declare `const INGRESS` in script scope.
     var ingress = '';
     try { ingress = window.INGRESS != null ? window.INGRESS : (typeof INGRESS !== 'undefined' ? INGRESS : ''); }
     catch (e) { /* ignore */ }

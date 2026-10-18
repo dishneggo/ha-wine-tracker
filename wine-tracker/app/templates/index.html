@@ -1541,7 +1541,7 @@ document.getElementById('deleteForm').addEventListener('submit', function(e) {
   });
 });
 
-// Highlight newly added wine & scroll to it (for non-JS fallback / initial load)
+// Highlight newly added wine & scroll to it
 (function() {
   const params = new URLSearchParams(window.location.search);
   const newId = params.get('new');

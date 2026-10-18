@@ -22,7 +22,7 @@ services:
       # Language: de, en, fr, it, es, pt, nl
       - LANGUAGE=de
 
-      # ── AI Provider (optional — pick ONE) ───────────────────────────
+      # ── AI Provider (optional - pick ONE) ───────────────────────────
       # Provider: none, anthropic, openai, openrouter, ollama, minimax, mistral
       # - AI_PROVIDER=anthropic
 

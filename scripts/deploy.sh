@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────────────
-# deploy.sh — Automated release pipeline for Wine Tracker
+# deploy.sh - Automated release pipeline for Wine Tracker
 #
 # Usage:
 #   ./scripts/deploy.sh v1.8.0
@@ -13,7 +13,7 @@ set -euo pipefail
 #   2. Check for clean working tree
 #   3. Run all tests (pytest)
 #   4. Update version in 8 files (incl. docs/llms.txt, docs/sitemap.xml)
-#   5. Generate CHANGELOG entry from git log
+#   5. Read CHANGELOG entry (must be written manually beforehand)
 #   6. Commit version bump + changelog
 #   7. Create git tag
 #   8. Push commit + tag to origin
@@ -76,31 +76,31 @@ ok "All tests passed"
 # ── 4. Update version in 8 files ──────────────────────────
 info "Updating version to ${SEMVER} in all files..."
 
-# 4a. wine-tracker/config.yaml — version: "X.Y.Z"
+# 4a. wine-tracker/config.yaml - version: "X.Y.Z"
 sed -i '' "s/^version: \"${CURRENT_VERSION}\"/version: \"${SEMVER}\"/" wine-tracker/config.yaml
 ok "wine-tracker/config.yaml updated"
 
-# 4b. wine-tracker/app/app.py — APP_VERSION = "X.Y.Z"
+# 4b. wine-tracker/app/app.py - APP_VERSION = "X.Y.Z"
 sed -i '' "s/APP_VERSION = \"${CURRENT_VERSION}\"/APP_VERSION = \"${SEMVER}\"/" wine-tracker/app/app.py
 ok "wine-tracker/app/app.py updated"
 
-# 4c. wine-tracker/tests/test_routes.py — assert "vX.Y.Z"
+# 4c. wine-tracker/tests/test_routes.py - assert "vX.Y.Z"
 sed -i '' "s/\"v${CURRENT_VERSION}\"/\"v${SEMVER}\"/" wine-tracker/tests/test_routes.py
 ok "wine-tracker/tests/test_routes.py updated"
 
-# 4d. README.md — version badge
+# 4d. README.md - version badge
 sed -i '' "s/version-v${CURRENT_VERSION}-blue/version-v${SEMVER}-blue/" README.md
 ok "README.md updated"
 
-# 4e. wine-tracker/README.md — version badge
+# 4e. wine-tracker/README.md - version badge
 sed -i '' "s/version-v${CURRENT_VERSION}-blue/version-v${SEMVER}-blue/" wine-tracker/README.md
 ok "wine-tracker/README.md updated"
 
-# 4f. wine-tracker/DOCS.md — version badge
+# 4f. wine-tracker/DOCS.md - version badge
 sed -i '' "s/version-v${CURRENT_VERSION}-blue/version-v${SEMVER}-blue/" wine-tracker/DOCS.md
 ok "wine-tracker/DOCS.md updated"
 
-# 4g. docs/llms.txt — bump only the "Current version" pointer line. Do NOT
+# 4g. docs/llms.txt - bump only the "Current version" pointer line. Do NOT
 # blanket-replace the version string: the file's version-history section lists
 # past releases (e.g. "v1.10.0"), and a global sed would mislabel those.
 # Content regeneration is deferred (post-release) because the claude --print
@@ -110,7 +110,7 @@ if [[ -f "docs/llms.txt" ]]; then
   ok "docs/llms.txt current-version pointer bumped to ${SEMVER} (content regen deferred to post-release)"
 fi
 
-# 4h. docs/sitemap.xml — stamp the release date as lastmod
+# 4h. docs/sitemap.xml - stamp the release date as lastmod
 if [[ -f "docs/sitemap.xml" ]]; then
   sed -i '' "s|<lastmod>[0-9-]*</lastmod>|<lastmod>$(date +%F)</lastmod>|" docs/sitemap.xml
   ok "docs/sitemap.xml lastmod stamped with today's date"
@@ -159,7 +159,7 @@ if [[ -n "$PREV_TAG" ]]; then
     echo ""
 
     # Guard: a bullet-to-commit ratio below 0.4 is very likely an incomplete
-    # changelog — the author wrote it from session memory instead of from the
+    # changelog - the author wrote it from session memory instead of from the
     # git log. Refuse to deploy.
     # Use bash arithmetic: need BULLET*10 >= COMMIT*4 to pass.
     if (( BULLET_COUNT * 10 < COMMIT_COUNT * 4 )); then
@@ -167,7 +167,7 @@ if [[ -n "$PREV_TAG" ]]; then
       echo -e "${RED}[ERROR]${NC}   ${BULLET_COUNT} bullet(s) for ${COMMIT_COUNT} commit(s) since ${PREV_TAG}."
       echo -e "${RED}[ERROR]${NC}   Go through the commit list above and make sure every"
       echo -e "${RED}[ERROR]${NC}   user-visible change is represented in the CHANGELOG."
-      echo -e "${RED}[ERROR]${NC}   DO NOT write the changelog from memory — use 'git log ${PREV_TAG}..HEAD'."
+      echo -e "${RED}[ERROR]${NC}   DO NOT write the changelog from memory - use 'git log ${PREV_TAG}..HEAD'."
       exit 1
     fi
   fi
@@ -216,7 +216,7 @@ info "Creating tag ${TAG}..."
 git tag -a "$TAG" -m "Release ${TAG}"
 ok "Tag ${TAG} created"
 
-# ── 8. Push and create GitHub Release ────────────────────
+# ── 8. Push ──────────────────────────────────────────────
 info "Pushing to origin..."
 git push origin "$BRANCH"
 git push origin "$TAG"
@@ -233,7 +233,7 @@ if command -v gh &> /dev/null; then
 
   ok "GitHub Release created"
 else
-  warn "gh CLI not installed — create the release manually on GitHub"
+  warn "gh CLI not installed - create the release manually on GitHub"
   warn "Go to: https://github.com/xenofex7/ha-wine-tracker/releases/new?tag=${TAG}"
 fi
 

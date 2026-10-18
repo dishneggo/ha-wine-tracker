@@ -6,7 +6,7 @@
 #
 # Workflow:
 #   1. Clone/pull the repo to /tmp/ha-wine-tracker-repo (shallow)
-#   2. rsync the wine-tracker/ subfolder into /addons/wine-tracker-dev/
+#   2. Copy the wine-tracker/ subfolder into /addons/wine-tracker-dev/
 #   3. Patch slug + name so HA treats this as a separate addon from
 #      the official one installed via the addon store
 #   4. Reload, rebuild, restart the addon

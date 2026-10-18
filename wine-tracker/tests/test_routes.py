@@ -85,11 +85,11 @@ class TestIndex:
         Regression test for a bug where {{ t.filter_all }}, {{ t.filter_dw_in }}
         and {{ t.filter_dw_last }} had lost their `t.` prefix, causing the
         labels to render as empty strings and leaving only the counts visible
-        in the filter dropdown (see commit 051b5cf).
+        in the filter dropdown.
         """
         resp = client.get("/")
         html = resp.data.decode()
-        # Default language is German; the three previously-broken labels:
+        # Default language is German; the three labels:
         assert "Im Trinkfenster" in html
         assert "Letztes Jahr" in html
         # And the one that was always correct (sanity check):
