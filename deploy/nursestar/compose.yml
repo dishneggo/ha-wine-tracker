@@ -1,0 +1,46 @@
+# Wine Tracker on the NurseStar VPS (wine.clearnuvo.com).
+#
+# Run from the repo root on the server:
+#   docker compose -f deploy/nursestar/compose.yml up -d --build
+#
+# WT_ROOT defaults to /opt/nursestar/wine-tracker (the git checkout).
+# Runtime state lives in gitignored directories under it:
+#   $WT_ROOT/.env                 secrets, root:root 0600, never committed
+#   $WT_ROOT/data/                SQLite DB + uploads, owned by 10001:10001
+#   $WT_ROOT/secrets/users.json   hashed app logins (added with hosted auth)
+name: wine-tracker
+
+services:
+  wine-tracker:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+    image: wine-tracker:nursestar
+    container_name: wine-tracker
+    restart: unless-stopped
+    env_file:
+      - ${WT_ROOT:-/opt/nursestar/wine-tracker}/.env
+    ports:
+      # Loopback only. Host nginx is the only way in.
+      - "127.0.0.1:8096:5050"
+    volumes:
+      # -> data/wine-tracker/wine.db, data/wine-tracker/uploads/
+      - ${WT_ROOT:-/opt/nursestar/wine-tracker}/data:/data
+    # The host has no swap. Cap memory so an overshoot kills only this
+    # container (restart policy brings it back), never nginx or neighbours.
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 200
+    cpus: 1.0
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

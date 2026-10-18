@@ -13,3 +13,13 @@ wine-tracker-dev/.pytest_cache/
 
 # Local environment files (copy .env.example to .env)
 .env
+
+# Hosted deployment (NurseStar): runtime state and secrets, never commit
+/data/
+/secrets/
+/backups/
+*.db
+*.db-wal
+*.db-shm
+.env.*
+!.env.example

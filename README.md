@@ -1,3 +1,5 @@
+> **Fork notice:** this is a personal fork of [xenofex7/ha-wine-tracker](https://github.com/xenofex7/ha-wine-tracker) (MIT, copyright the original author) adapted for a self-hosted deployment behind Cloudflare Access. See [DEPLOY.md](DEPLOY.md). Upstream issues belong upstream.
+
 # Wine Tracker - Home Assistant Add-on & Docker Standalone
 
 <p align="center">

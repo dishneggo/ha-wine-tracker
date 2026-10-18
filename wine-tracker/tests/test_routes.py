@@ -1663,3 +1663,21 @@ class TestDeleteUndo:
         client.post(f"/api/wine/{wine_id}/restore", headers=self.XHR)
         resp = client.post(f"/api/wine/{wine_id}/restore", headers=self.XHR)
         assert resp.status_code == 404
+
+
+# ── /healthz (container healthcheck) ─────────────────────────────────────────
+
+class TestHealthz:
+    def test_healthz_ok_without_session(self, client):
+        resp = client.get("/healthz")
+        assert resp.status_code == 200
+        assert resp.data == b"ok"
+        assert resp.mimetype == "text/plain"
+
+    def test_healthz_ok_with_auth_enabled(self, client, monkeypatch):
+        import app as wine_app
+        monkeypatch.setattr(wine_app, "AUTH_ENABLED", True)
+        resp = client.get("/healthz")
+        assert resp.status_code == 200
+        # Other pages still require login
+        assert client.get("/").status_code == 302

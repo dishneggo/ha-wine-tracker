@@ -403,7 +403,7 @@ def check_auth():
     """Enforce login when AUTH_ENABLED=true (standalone Docker deployment)."""
     if not AUTH_ENABLED:
         return
-    if request.endpoint in ("login", "static", "uploaded_file"):
+    if request.endpoint in ("login", "static", "uploaded_file", "healthz"):
         return
     if not session.get("user"):
         if request.path.startswith("/api/"):
@@ -788,6 +788,12 @@ def save_image(file):
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
+@app.route("/healthz")
+def healthz():
+    """Liveness probe for the container healthcheck. Returns no data."""
+    return Response("ok", mimetype="text/plain")
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():

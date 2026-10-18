@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r wine-tracker/requirements.txt pytest ruff
+
+      - name: Lint (errors that break at runtime)
+        run: ruff check --select E9,F63,F7,F82 wine-tracker/app wine-tracker/tests
+
+      - name: Shellcheck deploy scripts
+        run: shellcheck deploy/nursestar/ops/*.sh
+
+      - name: Tests
+        working-directory: wine-tracker
+        run: pytest tests/ -q
+
+  docker:
+    name: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -f docker/Dockerfile -t wine-tracker:ci .
+
+      - name: Smoke test (healthz, non-root, read-only root fs)
+        run: |
+          docker run -d --name wt -p 127.0.0.1:5050:5050 --read-only --tmpfs /tmp \
+            -e AUTH_ENABLED=true -e USERS=ci:ci-only-password \
+            -e SECRET_KEY=ci-not-a-secret-ci-not-a-secret-00 \
+            wine-tracker:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:5050/healthz && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5050/healthz
+          test "$(docker exec wt id -u)" = "10001"
+          docker logs wt
+          docker rm -f wt

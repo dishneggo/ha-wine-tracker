@@ -1,0 +1,9 @@
+[Unit]
+Description=Wine Tracker restore test, first Sunday of each month 4:30 AM ET
+
+[Timer]
+OnCalendar=Sun *-*-01..07 04:30:00 America/New_York
+Persistent=true
+
+[Install]
+WantedBy=timers.target
