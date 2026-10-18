@@ -923,6 +923,11 @@
       font-size: 0.95rem;
     }
 
+    .docker-steps li > span,
+    .ha-steps li > span {
+      min-width: 0;
+    }
+
     .docker-steps li::before {
       content: counter(steps);
       min-width: 28px;
@@ -1112,6 +1117,7 @@
       font-size: 0.85rem;
       color: var(--gold);
       border: 1px solid var(--border);
+      overflow-wrap: anywhere;
     }
 
     /* ========================================
@@ -1552,9 +1558,9 @@
         <div class="docker-text fade-in fade-in-delay-2">
           <h3>Three simple steps</h3>
           <ol class="docker-steps">
-            <li>Create a <code>docker-compose.yml</code> file with the configuration shown here</li>
-            <li>Run <code>docker-compose up -d</code> to start the container</li>
-            <li>Open <code>http://localhost:5050</code> in your browser and log in</li>
+            <li><span>Create a <code>docker-compose.yml</code> file with the configuration shown here</span></li>
+            <li><span>Run <code>docker-compose up -d</code> to start the container</span></li>
+            <li><span>Open <code>http://localhost:5050</code> in your browser and log in</span></li>
           </ol>
           <p>All data is stored in a Docker volume - your collection survives container updates.</p>
           <a href="https://github.com/xenofex7/ha-wine-tracker/blob/main/docker/docker-compose.yml" class="docker-link" target="_blank" rel="noopener">
@@ -1605,9 +1611,9 @@
           <img src="https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg" alt="Add Repository to My Home Assistant">
         </a>
         <ol class="ha-steps">
-          <li>Click the button above or manually add the repository URL: <code>https://github.com/xenofex7/ha-wine-tracker</code></li>
-          <li><strong>Wine Tracker</strong> will appear in your add-on store. Click <strong>Install</strong></li>
-          <li>Start the add-on - it opens in your HA sidebar under <strong>Wine Tracker</strong></li>
+          <li><span>Click the button above or manually add the repository URL: <code>https://github.com/xenofex7/ha-wine-tracker</code></span></li>
+          <li><span><strong>Wine Tracker</strong> will appear in your add-on store. Click <strong>Install</strong></span></li>
+          <li><span>Start the add-on - it opens in your HA sidebar under <strong>Wine Tracker</strong></span></li>
         </ol>
       </div>
     </div>
