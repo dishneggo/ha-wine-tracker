@@ -33,7 +33,7 @@
       </div>
       <div class="source-options">
         {% if ai_enabled %}
-        <div class="source-option" onclick="onSourceAi()">
+        <div class="source-option" tabindex="0" role="button" onclick="onSourceAi()">
           <i class="mdi mdi-camera"></i>
           <div class="source-text">
             <div class="source-label">{{ t.ai_step_title }}</div>
@@ -41,14 +41,14 @@
           </div>
         </div>
         {% endif %}
-        <div class="source-option" onclick="onSourceVivino()">
+        <div class="source-option" tabindex="0" role="button" onclick="onSourceVivino()">
           <i class="mdi mdi-magnify"></i>
           <div class="source-text">
             <div class="source-label">{{ t.vivino_title }}</div>
             <div class="source-desc">{{ t.vivino_desc }}</div>
           </div>
         </div>
-        <div class="source-option" onclick="skipToManual()">
+        <div class="source-option" tabindex="0" role="button" onclick="skipToManual()">
           <i class="mdi mdi-pencil"></i>
           <div class="source-text">
             <div class="source-label">{{ t.ai_skip }}</div>
@@ -446,7 +446,7 @@ function renderVivinoResults(items) {
       ? '<img class="vivino-result-img" src="' + item.image_url + '" alt="" loading="lazy">'
       : '<div class="vivino-result-img" style="display:flex;align-items:center;justify-content:center;background:var(--surface);"><i class="mdi mdi-glass-wine" style="font-size:1.5rem;opacity:.4"></i></div>';
 
-    return '<div class="vivino-result-item" onclick="selectVivinoResult(' + idx + ')">' +
+    return '<div class="vivino-result-item" tabindex="0" role="button" onclick="selectVivinoResult(' + idx + ')">' +
       imgHtml +
       '<div class="vivino-result-info">' +
         '<div class="vivino-result-name">' + (item.name || '').replace(/</g, '&lt;') + '</div>' +

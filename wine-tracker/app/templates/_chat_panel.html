@@ -245,7 +245,7 @@ function loadChatSessionList() {
           var d = new Date(s.updated);
           dateStr = d.toLocaleDateString('{{ lang }}', {day: '2-digit', month: '2-digit', year: 'numeric'});
         }
-        html += '<div class="chat-session-item' + (isActive ? ' active' : '') + '" onclick="loadChatSession(' + s.id + ')">';
+        html += '<div class="chat-session-item' + (isActive ? ' active' : '') + '" tabindex="0" role="button" onclick="loadChatSession(' + s.id + ')">';
         html += '<div class="chat-session-item-icon"><i class="mdi mdi-chat-outline"></i></div>';
         html += '<div class="chat-session-item-info">';
         html += '<div class="chat-session-item-title">' + escapeHtmlChat(title) + '</div>';

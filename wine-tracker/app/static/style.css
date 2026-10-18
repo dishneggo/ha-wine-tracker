@@ -21,6 +21,8 @@
   --success: #27ae60;
   --warning: #e67e22;
   --on-accent: #ffffff;
+  --danger-fill: #c0392b;
+  --danger-fill-hover: #a93226;
   --overlay: rgba(0,0,0,.75);
   --overlay-strong: rgba(0,0,0,.92);
   --overlay-soft: rgba(0,0,0,.6);
@@ -847,11 +849,13 @@ html.light .filter-option:hover { background: rgba(0,0,0,.05); }
 }
 .btn-cancel:hover { background: var(--surface); border-color: var(--accent); }
 .btn-delete {
-  flex: 1; background: #c0392b; color: var(--on-accent); border: none;
+  flex: 1; background: var(--danger-fill); color: var(--on-accent); border: none;
   padding: .6rem 1rem; border-radius: 8px; font-size: .9rem;
   cursor: pointer; font-weight: 600; transition: background .2s;
 }
-.btn-delete:hover { background: #e74c3c; }
+.btn-delete:hover { background: var(--danger-fill-hover); }
+.btn-submit:disabled, .btn-cancel:disabled, .btn-delete:disabled { opacity: .5; cursor: not-allowed; }
+.btn-submit:active:not(:disabled), .btn-cancel:active:not(:disabled), .btn-delete:active:not(:disabled) { transform: translateY(1px); }
 
 /* Duplicate modal */
 .dup-hint { font-size: .82rem; color: var(--muted); background: var(--bg);
@@ -885,7 +889,8 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 /* Star rating input */
 .star-input { display: flex; gap: .25rem; flex-direction: row-reverse;
               justify-content: flex-end; }
-.star-input input { display: none; }
+.star-input input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.star-input input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .star-input label {
   font-size: 1.5rem; cursor: pointer; color: var(--border);
   margin: 0; padding: 0; transition: color .15s;
@@ -1268,6 +1273,7 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
 .toggle-switch input { opacity: 0; width: 0; height: 0; }
 .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--muted); border-radius: 24px; transition: background .25s; }
 .toggle-slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: transform .25s; }
+.toggle-switch input:focus-visible + .toggle-slider { outline: 2px solid var(--accent); outline-offset: 2px; }
 .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
 .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
 .theme-segmented {

@@ -63,6 +63,8 @@ Wine Tracker is a Flask app with classic server rendering and a hand-written CSS
   // semantic tokens, theme-independent, as light/dark pairs
   "semantic": {
     "danger":   { "dark": "#e74c3c", "light": "#c0392b" },
+    "dangerFill": "#c0392b",          // solid danger surfaces (delete button), same in both modes
+    "dangerFillHover": "#a93226",
     "success":  { "dark": "#27ae60", "light": "#1e8449" },
     "warning":  { "dark": "#e67e22", "light": "#b45309" },
     "onAccent": "#ffffff",            // target; themes whose accent misses AA adjust the accent (see migration)
@@ -91,7 +93,7 @@ Wine Tracker is a Flask app with classic server rendering and a hand-written CSS
 ## Colors
 
 - **Core tokens:** see the theme matrix above. `--accent2` is darker than `--accent` in all sets and serves as the **hover surface** for solid accent elements. As a hover **text color**, `--accent2` is forbidden in dark mode (too dark on dark ground, contrast down to 1.9:1) - hover text switches to `--text` or `--accent` instead.
-- **Semantics:** `--danger`/`--success`/`--warning` progressively replace the ~30 hardcoded `#e74c3c`/`#27ae60`/`#e67e22` spots; every usage automatically gains the light variant. Danger surfaces (delete button) use the light values as background with `--on-accent` text.
+- **Semantics:** `--danger`/`--success`/`--warning` progressively replace the ~30 hardcoded `#e74c3c`/`#27ae60`/`#e67e22` spots; every usage automatically gains the light variant. Danger surfaces (delete button) use `--danger-fill`/`--danger-fill-hover` (dark-enough reds, identical in both modes) with `--on-accent` text.
 - **Hover tints:** `color-mix(in srgb, var(--accent) 10%, transparent)` is the standard tint for list/item hover. Black/white alpha tints are retired (they fail depending on mode; the nav still uses black alpha in dark mode - migration list).
 - **Overlays:** `--overlay` (modal), `--overlay-strong` (lightbox), `--overlay-soft` (dialog on top of a modal). No other scrim values.
 - **Wine type colors** (`--wine-*`) are data colors for ribbons, dots, charts - identical across all themes and never used for UI states. Ribbon text: `#333` on light types (white/rose/sparkling), otherwise `#fff`.
@@ -150,7 +152,7 @@ Named special cases remain: lightbox image `0 0 40px .6`, chat panel `0 8px 32px
 |---|---|---|
 | Primary | `.btn-submit` | BG `--accent`, text `--on-accent`, h38, r8, `.95rem/700`, hover BG `--accent2`, `:disabled` opacity .5 |
 | Secondary | `.btn-cancel` | BG `--bg`, 1px `--border`, text `--text`, r8, `.9rem/600`, hover border `--accent` + BG `--surface` |
-| Danger | `.btn-delete` | BG `--danger` (light value), text `--on-accent`, otherwise secondary geometry |
+| Danger | `.btn-delete` | BG `--danger-fill`, text `--on-accent`, hover `--danger-fill-hover`, otherwise secondary geometry |
 | Icon (header) | 34x34 (mobile 30x30), outlined, r8, icon 1.1rem | hamburger, theme, filter, chat header |
 | Icon (form) | 38x38, r8 or r6 in image context | reload trigger, image actions |
 | FAB | 56px circle, `--accent`/`--on-accent`, shadow toast, hover `--accent2` + scale 1.05, active scale .92 | |
@@ -223,6 +225,8 @@ Semantic tokens as implemented in `style.css` (dark base in `:root`, light pairs
   --success: #27ae60;
   --warning: #e67e22;
   --on-accent: #ffffff;
+  --danger-fill: #c0392b;
+  --danger-fill-hover: #a93226;
   --overlay: rgba(0,0,0,.75);
   --overlay-strong: rgba(0,0,0,.92);
   --overlay-soft: rgba(0,0,0,.6);
@@ -238,7 +242,7 @@ html.light {
 
 Prioritized list - to be worked off the next time the spot is touched, not as a big bang:
 
-1. ~~**Introduce semantic tokens**~~ **Done (2026-10-18):** `:root` block added; ~30 hardcodes migrated to `--danger/--success/--warning/--on-accent/--overlay*`. Remaining: `.btn-delete` fill colors (`#c0392b`/`#e74c3c`) await the `--danger-hover` decision in gap 14.
+1. ~~**Introduce semantic tokens**~~ **Done (2026-10-18):** `:root` block added; ~30 hardcodes migrated to `--danger/--success/--warning/--on-accent/--overlay*`. The `.btn-delete` fill migrated to `--danger-fill`/`--danger-fill-hover` (gap 14).
 2. **Contrast fixes:** adjust accent tones of vineyard/champagne/slate/HA dark (and vineyard/champagne light) towards 4.5:1 against white; lighten `--muted` slightly in classic/slate dark; review ribbon text colors for dessertwein/empty. Newly computed (audit 2026-10-18): accent as text on `--surface` in classic dark (3.2) and burgundy dark (3.6); `--gold` as text in classic/champagne/vineyard/slate/HA light (4.0-4.3); `--muted` in vineyard/champagne light (4.3); success toast (`--bg` on `--gold`) in classic light 3.6; qty badge (dark BG, light text values) down to 1.6; toggle track `--muted` in HA dark 2.8; empty star state `--border` on `--surface` below 3:1. → needs decisions: gold text variant for light, accent only as surface/underline or `--accent-text`, fixed dark text value for the qty badge.
 3. **Button consolidation:** fold `.btn-primary`/`.btn-secondary` (adv filter) and `.ai-btn` back into `.btn-submit`/`.btn-cancel`; unify button height at 38 (the import 42px one); `white` → `--on-accent` (done for color usages; class consolidation open).
 4. ~~**Focus-visible**~~ **Done (2026-10-18):** global ring rule plus input ring recipe introduced; all `outline: none` spots retrofitted. Keyboard reachability of non-native targets remains gap 13.
@@ -253,8 +257,8 @@ Prioritized list - to be worked off the next time the spot is touched, not as a 
 
 Added after the consistency audit of 2026-10-18 (three agents: tokens/scales, components, hardcodes/a11y):
 
-13. **Keyboard reachability:** click targets implemented as `div`/`td`/`tr` with `onclick` and no `tabindex`/`role`/key handler - cards (image, body, qty badge), table rows, theme and model dropdown items, source options in the wine modal, chat session list, photo panels. Star rating (`display: none`) and toggle switches (`opacity: 0`) have no visible focus. → switch to `button` or `role` + `tabindex` + Enter/Space, focus ring via sibling selector on slider/stars.
-14. **Button states:** the canonical trio has no `:disabled`/`:active`, although the code does set `disabled` (export/import). `.btn-delete:hover` (`#e74c3c` with white) sits at 3.8:1. → global `:disabled` opacity .5, derive hover from the light danger value (decision: `--danger-hover`).
+13. ~~**Keyboard reachability**~~ **Done (2026-10-18):** all div/td/tr click targets carry `tabindex="0"` (+ `role="button"` outside tables), activated via a shared Enter/Space handler in `theme.js`; star inputs are visually hidden instead of `display: none` and stars/toggles show a focus ring via sibling selectors. The card image stays without a tab stop (same action as the card body).
+14. ~~**Button states**~~ **Done (2026-10-18):** trio has `:disabled` (opacity .5) and `:active` (translateY 1px); `.btn-delete` uses the new `--danger-fill`/`--danger-fill-hover` tokens (hover now darkens, white text >= 4.5:1).
 15. **Unify close behavior:** ESC in the filter name dialog closes both overlays (bubbling bug, `_nameDialogResolve` is left dangling); ESC closes lightbox and view modal at the same time; the close/overlay/ESC logic is copied 4x (index/stats/timeline/chat) with slight differences; no dropdown/popover closes on ESC. Native `confirm()`/`alert()` (chat delete, filter, photo) are blocked in HA ingress/iOS - replace with the 360px confirmation modal or the error toast. → one shared implementation in `theme.js`, one layer per ESC.
 16. **Icon buttons and touch targets:** a ghost icon button recipe is missing (borderless, minimum target 34px, `aria-label` mandatory). Current families: `.modal-close` (~13x21), `.chat-header-btn` (28x28), `.chat-session-delete` (~23), `.chat-image-remove`, `.search-clear`, `.adv-filter-preset-edit/-delete`, `.adv-cond-chip` (~28), `.adv-cond-op/-input` (~31 instead of 38), `.filter-option` (~29). `.chat-send`/`.chat-upload-btn` 36 instead of 34/38.
 17. **Scale rounding when touched:** ~45 font-size declarations off-scale (clusters .72/.78/.82/.88/1.05/1.15/1.2rem, plus .55/.6/1.3/1.4/1.6/1.8rem) round to the nearest step; ~73 spacings off-grid (clusters .15/.2/.3/.45/.65/.7/.8/.85rem) plus px leftovers (`.nav-menu-item` 12px 20px and others); motion stray value .6s (chart fill) onto the scale; `@media (max-width: 420px)` onto 500; `100vh` leftovers onto `dvh`.

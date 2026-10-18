@@ -207,7 +207,7 @@ function openViewModal(id, wine) {
     ribbonHtml = '<span class="ribbon ribbon-' + escapeHtml(w.type.toLowerCase().replace(/[éö]/g, function(c){return c==='é'?'e':'oe';})) + '">' + escapeHtml(typeLabel) + '</span>';
   }
   if (w.image) {
-    html += '<div class="view-photo-panel" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
+    html += '<div class="view-photo-panel" tabindex="0" role="button" onclick="openLightbox(\'' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '\')">'
           + ribbonHtml
           + '<img src="' + INGRESS + '/uploads/' + encodeURIComponent(w.image) + '" alt="' + escapeHtml(w.name) + '">'
           + '</div>';
@@ -386,7 +386,7 @@ function loadChatSidebarList() {
           dateStr = d.toLocaleDateString('{{ lang }}', {day: '2-digit', month: '2-digit', year: 'numeric'});
         }
         var msgLabel = s.message_count === 1 ? (T.chat_message || 'message') : (T.chat_messages || 'messages');
-        html += '<div class="chat-session-item' + (isActive ? ' active' : '') + '" onclick="loadChatSession(' + s.id + ')">';
+        html += '<div class="chat-session-item' + (isActive ? ' active' : '') + '" tabindex="0" role="button" onclick="loadChatSession(' + s.id + ')">';
         html += '<div class="chat-session-item-info">';
         html += '<div class="chat-session-item-title">' + escapeHtmlChat(title) + '</div>';
         html += '<div class="chat-session-item-date">' + escapeHtmlChat(dateStr) + ' · ' + s.message_count + ' ' + msgLabel + '</div>';

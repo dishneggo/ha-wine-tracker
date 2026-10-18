@@ -249,11 +249,11 @@ function toggleModelDd(inputId, ev) {
     html += '<input type="text" class="model-dd-filter" oninput="filterModelDd(this)" onclick="event.stopPropagation()">';
   }
   if (inputId === 'aiChatModelInput') {
-    html += '<div class="model-dd-item' + (current === '' ? ' active' : '') + '" data-model="">&mdash;</div>';
+    html += '<div class="model-dd-item' + (current === '' ? ' active' : '') + '" data-model="" tabindex="0" role="button">&mdash;</div>';
   }
   html += models.map(function(m) {
     var esc = m.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-    return '<div class="model-dd-item' + (m === current ? ' active' : '') + '" data-model="' + esc + '">' + esc + '</div>';
+    return '<div class="model-dd-item' + (m === current ? ' active' : '') + '" data-model="' + esc + '" tabindex="0" role="button">' + esc + '</div>';
   }).join('');
   dd.innerHTML = html;
   var r = input.getBoundingClientRect();
@@ -553,6 +553,17 @@ function _schedulePrefSync() {
   var name = localStorage.getItem('wine-theme-name') || 'homeassistant';
   applyThemeName(name);
 })();
+
+// Keyboard activation for non-native click targets (tabindex="0" + onclick)
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  var el = e.target;
+  if (!el || !el.getAttribute || el.getAttribute('tabindex') !== '0') return;
+  if (!el.hasAttribute('onclick') && el.getAttribute('role') !== 'button') return;
+  if (el.matches('button, a, input, select, textarea, label')) return;
+  e.preventDefault();
+  el.click();
+});
 
 // OS theme change listener
 window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function() {
