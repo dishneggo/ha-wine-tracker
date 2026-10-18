@@ -301,6 +301,7 @@
     <div class="settings-footer">
       <span class="settings-footer-user"><i class="mdi mdi-account"></i> {{ auth_user }}</span>
       <form method="post" action="{{ ingress }}/logout" class="settings-footer-logout-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="settings-footer-logout"><i class="mdi mdi-logout"></i> {{ t.btn_logout }}</button>
       </form>
     </div>
