@@ -12,7 +12,7 @@ set -euo pipefail
 #   1. Validate version argument (must be semver: vX.Y.Z)
 #   2. Check for clean working tree
 #   3. Run all tests (pytest)
-#   4. Update version in 7 files (incl. docs/llms.txt)
+#   4. Update version in 8 files (incl. docs/llms.txt, docs/sitemap.xml)
 #   5. Generate CHANGELOG entry from git log
 #   6. Commit version bump + changelog
 #   7. Create git tag
@@ -73,7 +73,7 @@ info "Running tests..."
 .venv/bin/python -m pytest wine-tracker/tests/ -v
 ok "All tests passed"
 
-# ── 4. Update version in 7 files ──────────────────────────
+# ── 4. Update version in 8 files ──────────────────────────
 info "Updating version to ${SEMVER} in all files..."
 
 # 4a. wine-tracker/config.yaml — version: "X.Y.Z"
@@ -108,6 +108,12 @@ ok "wine-tracker/DOCS.md updated"
 if [[ -f "docs/llms.txt" ]]; then
   sed -i '' "s/^Current version: \*\*v${CURRENT_VERSION}\*\*/Current version: **v${SEMVER}**/" docs/llms.txt
   ok "docs/llms.txt current-version pointer bumped to ${SEMVER} (content regen deferred to post-release)"
+fi
+
+# 4h. docs/sitemap.xml — stamp the release date as lastmod
+if [[ -f "docs/sitemap.xml" ]]; then
+  sed -i '' "s|<lastmod>[0-9-]*</lastmod>|<lastmod>$(date +%F)</lastmod>|" docs/sitemap.xml
+  ok "docs/sitemap.xml lastmod stamped with today's date"
 fi
 
 # ── 5. Read CHANGELOG entry ───────────────────────────────
