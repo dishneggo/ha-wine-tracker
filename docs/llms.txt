@@ -20,9 +20,9 @@ Wine Tracker helps wine enthusiasts manage their personal wine collection with A
 ## Core Features
 
 ### Wine Management
-- Wine cards with photo, vintage, type, region, grape variety, rating & notes
+- Wine cards with photo, producer, vintage, type, region, grape variety, alcohol, rating & notes
 - Photo upload from phone (label photos)
-- Quick quantity tracking with `+`/`−` buttons on every card
+- Quick quantity tracking with `+`/`−` buttons on every card, a popover on the bottle badge in every view, and a five-second undo toast
 - Bottle format support (0.1875 l Piccolo → 15 l Nebuchadnezzar)
 - Duplicate wines - perfect when only the vintage changes
 - Out-of-stock wines stay listed with an "Empty" corner ribbon - a persistent "show empty bottles" setting (plus a quick filter-bar toggle) controls whether they appear
@@ -42,6 +42,7 @@ Wine Tracker helps wine enthusiasts manage their personal wine collection with A
 - **Advanced filter** - combine multiple AND-conditions across any field (type, vintage, region, grape, rating, drink window, location, source, format, ...) in one popover; save named filter presets and re-apply them with one click
 - **Hamburger menu** on narrow viewports
 - **6 themes** × dark & light mode
+- **Server-side preferences** - theme, colour mode, view mode, table sort, show-empty and filter defaults are stored in the database (per user when auth is enabled), so they survive a cache clear and follow you across browsers and devices
 
 ### AI-Powered Recognition & Analysis
 - **Label scan:** snap a photo → AI fills in name, vintage, type, region, grape, price, drinking window, notes
@@ -55,6 +56,7 @@ Wine Tracker helps wine enthusiasts manage their personal wine collection with A
   - **MiniMax** (`minimax`) - OpenAI-compatible, default model `MiniMax-M3`
   - **Mistral** (`mistral`) - OpenAI-compatible, vision-capable (default model `mistral-medium-latest`)
 - **Cost:** roughly $0.001/wine with GPT-4o-mini, $0.002 with Claude Haiku, free with Ollama
+- **In-app AI setup:** provider, models and API key are editable in the settings modal and override the add-on options and environment variables. Keys are write-only - stored but never returned - and a test button runs a minimal call against the provider. Admin only.
 
 ### AI Sommelier Chat
 - Ask questions about your cellar ("which wines should I open tonight?", "which bottles are at their peak?")
@@ -319,7 +321,6 @@ See `CLAUDE.md` for full project guidelines (in German).
 - Native Lovelace dashboard card
 
 ### UI & Personalization
-- Server-side preferences - persist theme, view mode and filters across browsers and devices (resolves #18)
 - Keyboard shortcuts (`/` search, `+` add, `Esc` close)
 - Wishlist mode (wines you want to buy)
 - Tags & custom categories
