@@ -110,7 +110,7 @@
        data-producer="{{ w['producer'] or '' }}"
        data-alcohol_pct="{{ w['alcohol_pct'] or '' }}"
        data-vivino_id="{{ w['vivino_id'] or '' }}"
-       data-bottle_format="{{ w['bottle_format'] or '0.75' }}">
+       data-bottle_format="{{ '%g'|format(w['bottle_format'] or 0.75) }}">
 
     {% if w['quantity'] == 0 %}
       <div class="ribbon ribbon-empty">{{ t.ribbon_empty }}</div>
@@ -594,7 +594,10 @@ function updateTabCounts() {
     var d = card.dataset;
     var searchOk = !query ||
       (d.name || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.producer || '').toLowerCase().indexOf(query) !== -1 ||
       (d.region || '').toLowerCase().indexOf(query) !== -1 ||
+      (d.year || '').indexOf(query) !== -1 ||
+      (d.grape || '').toLowerCase().indexOf(query) !== -1 ||
       (d.notes || '').toLowerCase().indexOf(query) !== -1;
     var typeOk = !activeType || d.type === activeType;
     var emptyOk = showEmpty || parseInt(d.quantity) > 0;
@@ -756,6 +759,7 @@ document.querySelectorAll('.modal-overlay').forEach(function(el) {
   el.addEventListener('click', function(e) {
     if (e.target !== el) return;
     if (el.id === 'wineModal') return; // handled by include
+    if (el.id === 'advancedFilterModal' && window.AdvancedFilter) { AdvancedFilter.closeModal(); return; }
     el.classList.remove('open');
   });
 });
@@ -767,6 +771,8 @@ document.addEventListener('keydown', function(e) {
     document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
       if (el.id === 'wineModal') {
         tryCloseWineModal();
+      } else if (el.id === 'advancedFilterModal' && window.AdvancedFilter) {
+        AdvancedFilter.closeModal();
       } else {
         el.classList.remove('open');
       }

@@ -164,6 +164,7 @@
       if (!state.rules.hasOwnProperty(fieldKey)) continue;
       var rule = state.rules[fieldKey];
       if (!rule || !rule.op) continue;
+      if (!isRuleActive(rule)) continue;
       if (!evalRule(ds, fieldKey, rule)) return false;
     }
     return true;
@@ -269,8 +270,11 @@
   function dwStatus(ds) {
     var until = parseInt(ds.drink_until, 10);
     var from  = parseInt(ds.drink_from, 10);
-    if (!until) return null;
     var year = new Date().getFullYear();
+    if (!until) {
+      if (from && from > year) return 'future';
+      return null;
+    }
     if (until < year) return 'past';
     if (until === year) return 'last';
     if ((!from || from <= year) && until >= year) return 'in';
@@ -583,6 +587,11 @@
       state.editingId = null;
       state.editingName = '';
     }
+    // Closing without "Apply" discards unapplied edits: reload the last
+    // saved rules so they can't kick in on a later applyFilters() call.
+    state.rules = {};
+    load();
+    updateBadge();
   }
 
   function apply() {
@@ -710,7 +719,7 @@
   function overwriteEditingPreset() {
     if (!state.editingId) return;
     var name = (state.editingName || '').trim();
-    if (!name) { window.alert(tr('filter_preset_name_exists')); return; }
+    if (!name) { window.alert(tr('filter_preset_save_prompt')); return; }
     fetch(apiBase() + '/' + state.editingId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
