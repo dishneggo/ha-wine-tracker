@@ -882,7 +882,6 @@
     reset: reset,
     updateBadge: updateBadge,
     openSaveDialog: openSaveDialog,
-    closeNameDialog: closeNameDialog,
     openSaveAsNewDialog: openSaveAsNewDialog,
     closeNameDialog: closeNameDialog,
     confirmNameDialog: confirmNameDialog,

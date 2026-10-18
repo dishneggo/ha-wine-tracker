@@ -557,7 +557,7 @@ function _schedulePrefSync() {
 // ── Shared toast (pages without their own qtyUndoToast host) ─────────────────
 var _appToastTimer = null;
 function appToast(message, kind) {
-  if (kind === 'error' && typeof showErrorToast === 'function') { showErrorToast(message); return; }
+  if (kind === 'error' && typeof showErrorToast === 'function' && document.getElementById('qtyUndoToast')) { showErrorToast(message); return; }
   var el = document.getElementById('appToast');
   if (!el) {
     el = document.createElement('div');
@@ -603,12 +603,19 @@ function _appConfirmClose(result) {
   if (el) el.classList.remove('open');
   var resolve = _appConfirmResolve;
   _appConfirmResolve = null;
+  if (_appConfirmReturnFocus && _appConfirmReturnFocus.focus) {
+    try { _appConfirmReturnFocus.focus(); } catch (e) {}
+  }
+  _appConfirmReturnFocus = null;
   if (resolve) resolve(result);
 }
+var _appConfirmReturnFocus = null;
 function appConfirm(message, opts) {
   opts = opts || {};
   var el = _ensureAppConfirm();
   var tr = window.T || {};
+  if (_appConfirmResolve) _appConfirmClose(false);
+  _appConfirmReturnFocus = document.activeElement;
   el.querySelector('#appConfirmMsg').textContent = message;
   el.querySelector('#appConfirmCancel').textContent = opts.cancelLabel || tr.btn_cancel || 'Cancel';
   var ok = el.querySelector('#appConfirmOk');
@@ -636,7 +643,7 @@ function closeTopLayer() {
     return true;
   }
   var reloadPop = document.getElementById('reloadPopover');
-  if (reloadPop && reloadPop.style.display && reloadPop.style.display !== 'none') {
+  if (reloadPop && reloadPop.style.display !== 'none') {
     if (typeof closeReloadPopover === 'function') closeReloadPopover();
     return true;
   }

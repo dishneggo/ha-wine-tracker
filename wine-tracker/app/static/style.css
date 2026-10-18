@@ -2574,8 +2574,6 @@ body.embedded .chat-fullpage { bottom: calc(56px + var(--kb-inset)); }
   min-width: 0;
 }
 .adv-cond-op { cursor: pointer; }
-.adv-cond-op:focus,
-.adv-cond-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .adv-cond-input-narrow { max-width: 120px; }
 
 /* Native <input type="date"> calendar icon: WebKit renders it as a dark

@@ -859,9 +859,9 @@ document.getElementById('wineForm').addEventListener('submit', function(e) {
   });
 });
 
-// ── Modal overlay click handling for wineModal (ESC lives in the pages) ─────
-// Other pages set up generic overlay click handlers; we need the wineModal-specific
-// dirty-guard behavior. We attach it once here on the wineModal overlay.
+// ── Modal overlay click handling for wineModal (ESC lives in theme.js) ──────
+// theme.js skips wineModal in its generic overlay handler; we need the
+// wineModal-specific dirty-guard behavior, attached once here.
 (function() {
   var wm = document.getElementById('wineModal');
   if (!wm) return;
