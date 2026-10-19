@@ -2,6 +2,8 @@
 <html lang="{{ lang }}">
 <head>
 <meta charset="UTF-8">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<script src="{{ ingress }}/static/csrf.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css">
@@ -182,6 +184,7 @@
       <button class="modal-close" onclick="closeModal('dupModal')">×</button>
     </div>
     <form method="post" id="dupForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="modal-body">
         <div class="dup-hint" id="dupHint"></div>
 
@@ -223,6 +226,7 @@
     <div class="delete-confirm-actions">
       <button class="btn-cancel" onclick="closeModal('deleteModal')">{{ t.btn_cancel }}</button>
       <form method="post" id="deleteForm" style="flex:1; display:contents">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn-delete">{{ t.btn_confirm_delete }}</button>
       </form>
     </div>

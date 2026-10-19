@@ -101,6 +101,7 @@
     </div>
 
     <form method="post" id="wineForm" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="ai_image" id="aiImageField" value="">
       <input type="hidden" name="vivino_id" id="wine_vivino_id" value="">
       <input type="hidden" name="delete_image" id="deleteImageField" value="">

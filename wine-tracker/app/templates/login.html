@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<script src="{{ url_for('static', filename='csrf.js') }}"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7/css/materialdesignicons.min.css">
@@ -84,11 +86,12 @@
     {% if error %}
     <div class="login-error" style="margin-bottom: 1rem;">
       <i class="mdi mdi-alert-circle"></i>
-      Invalid username or password.
+      {% if throttled %}Too many failed attempts. Try again in a few minutes.{% else %}Invalid username or password.{% endif %}
     </div>
     {% endif %}
 
     <form class="login-form" method="POST" action="{{ url_for('login') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div>
         <label for="username">Username</label>
         <input type="text" id="username" name="username" autocomplete="username" autofocus required>

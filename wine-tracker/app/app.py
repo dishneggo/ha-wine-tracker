@@ -1,6 +1,8 @@
 import json
 import os
+import re
 import secrets
+import threading
 import shutil
 import sqlite3
 import time
@@ -9,6 +11,8 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, g, session, Response
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from translations import TRANSLATIONS
 from export_import import (
     build_export_zip, export_filename,
@@ -125,6 +129,98 @@ if _max_mb:
     app.config["MAX_CONTENT_LENGTH"] = int(_max_mb) * 1024 * 1024
 
 
+def _env_flag(name, default=False):
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+# ── Proxy, CSRF, origin and ingress settings ─────────────────────────────────
+# TRUST_PROXY=1: exactly one reverse proxy (host nginx) sets X-Forwarded-For
+# and X-Forwarded-Proto. Without it, client-sent forwarding headers are ignored.
+TRUST_PROXY = _env_flag("TRUST_PROXY")
+if TRUST_PROXY:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0, x_prefix=0)
+
+# CSRF tokens on every POST/PUT/PATCH/DELETE. On by default in HOSTED_MODE.
+app.config["WTF_CSRF_ENABLED"] = _env_flag("CSRF_ENABLED", HOSTED_MODE)
+app.config["WTF_CSRF_TIME_LIMIT"] = None  # valid for the session lifetime
+app.config["WTF_CSRF_HEADERS"] = ["X-CSRFToken"]
+csrf = CSRFProtect(app)
+
+# Expected browser origin for state-changing requests, e.g.
+# https://wine.clearnuvo.com. Empty disables the check.
+PUBLIC_ORIGIN = os.environ.get("PUBLIC_ORIGIN", "").strip().rstrip("/")
+
+# Home Assistant ingress sends X-Ingress-Path. Only the add-on should trust it.
+TRUST_INGRESS_HEADER = _env_flag("TRUST_INGRESS_HEADER", not HOSTED_MODE)
+_INGRESS_RE = re.compile(r"^/api/hassio_ingress/[A-Za-z0-9_\-]+$")
+
+# Only serve uploads to logged-in users (HOSTED_MODE default).
+UPLOADS_REQUIRE_AUTH = _env_flag("UPLOADS_REQUIRE_AUTH", HOSTED_MODE)
+
+# Ignore AI settings stored in the DB and refuse to change them in the UI.
+# Keys then come only from the environment (and never end up in backups).
+LOCK_AI_SETTINGS = _env_flag("LOCK_AI_SETTINGS", HOSTED_MODE)
+
+_UNSAFE_METHODS = ("POST", "PUT", "PATCH", "DELETE")
+
+
+def _wants_json():
+    return (request.path.startswith("/api/") or bool(request.headers.get("X-Requested-With"))
+            or request.is_json)
+
+
+@app.errorhandler(CSRFError)
+def csrf_failed(e):
+    app.logger.warning("CSRF rejected %s %s: %s", request.method, request.path, e.description)
+    if _wants_json():
+        return jsonify(ok=False, error="csrf"), 400
+    return Response("Session expired or invalid form. Reload the page and try again.",
+                    status=400, mimetype="text/plain")
+
+
+# ── Login throttling (in memory, single waitress process) ────────────────────
+LOGIN_MAX_FAILS = int(os.environ.get("LOGIN_MAX_FAILS", "5"))
+LOGIN_MAX_FAILS_PER_IP = int(os.environ.get("LOGIN_MAX_FAILS_PER_IP", "20"))
+LOGIN_WINDOW_SECONDS = int(os.environ.get("LOGIN_WINDOW_SECONDS", "900"))
+_login_fails = defaultdict(list)
+_login_lock = threading.Lock()
+
+
+def _prune(times, now):
+    cutoff = now - LOGIN_WINDOW_SECONDS
+    while times and times[0] < cutoff:
+        times.pop(0)
+
+
+def login_throttled(ip, username, now=None):
+    """True when this IP (or this IP + user name) has too many recent failures."""
+    now = now or time.time()
+    with _login_lock:
+        pair = _login_fails[(ip, username.lower())]
+        per_ip = _login_fails[(ip, None)]
+        _prune(pair, now)
+        _prune(per_ip, now)
+        return len(pair) >= LOGIN_MAX_FAILS or len(per_ip) >= LOGIN_MAX_FAILS_PER_IP
+
+
+def record_login_failure(ip, username, now=None):
+    now = now or time.time()
+    with _login_lock:
+        _login_fails[(ip, username.lower())].append(now)
+        _login_fails[(ip, None)].append(now)
+        if len(_login_fails) > 10000:  # bound memory under a spray attack
+            for key in list(_login_fails)[:5000]:
+                _login_fails.pop(key, None)
+
+
+def clear_login_failures(ip, username):
+    with _login_lock:
+        _login_fails.pop((ip, username.lower()), None)
+
+
 @app.errorhandler(413)
 def request_too_large(_e):
     if request.path.startswith("/api/") or request.headers.get("X-Requested-With"):
@@ -214,9 +310,10 @@ def load_options():
             if opt_key == "ai_provider":
                 provider_explicit = True
 
-    # In-app AI settings (app_settings table) override HA options and env
+    # In-app AI settings (app_settings table) override HA options and env,
+    # unless LOCK_AI_SETTINGS pins them to the environment.
     db_path = globals().get("DB_PATH")
-    if db_path and os.path.exists(db_path):
+    if db_path and os.path.exists(db_path) and not globals().get("LOCK_AI_SETTINGS", False):
         try:
             with sqlite3.connect(db_path) as conn:
                 rows = conn.execute("SELECT key, value FROM app_settings").fetchall()
@@ -477,7 +574,30 @@ WINE_LABELS = {
 
 @app.before_request
 def set_ingress_path():
-    g.ingress = request.headers.get("X-Ingress-Path", "")
+    g.ingress = ""
+    if TRUST_INGRESS_HEADER:
+        candidate = request.headers.get("X-Ingress-Path", "")
+        if _INGRESS_RE.match(candidate):
+            g.ingress = candidate
+
+
+@app.before_request
+def check_origin():
+    """Reject cross-site state-changing requests (defence in depth on top of CSRF)."""
+    if not PUBLIC_ORIGIN or request.method not in _UNSAFE_METHODS:
+        return None
+    origin = request.headers.get("Origin")
+    if origin:
+        if origin.rstrip("/") == PUBLIC_ORIGIN:
+            return None
+    else:
+        referer = request.headers.get("Referer", "")
+        if not referer or referer == PUBLIC_ORIGIN or referer.startswith(PUBLIC_ORIGIN + "/"):
+            return None
+    app.logger.warning("Origin rejected for %s %s", request.method, request.path)
+    if _wants_json():
+        return jsonify(ok=False, error="bad_origin"), 403
+    return Response("Cross-site request refused", status=403, mimetype="text/plain")
 
 
 @app.before_request
@@ -485,7 +605,10 @@ def check_auth():
     """Enforce login when AUTH_ENABLED=true (standalone Docker deployment)."""
     if not AUTH_ENABLED:
         return
-    if request.endpoint in ("login", "static", "uploaded_file", "healthz"):
+    public = {"login", "static", "healthz"}
+    if not UPLOADS_REQUIRE_AUTH:
+        public.add("uploaded_file")
+    if request.endpoint in public:
         return
     if not session.get("user"):
         if request.path.startswith("/api/"):
@@ -882,16 +1005,22 @@ def login():
     if not AUTH_ENABLED:
         return redirect("/")
     if request.method == "POST":
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
+        username = request.form.get("username", "")[:128]
+        password = request.form.get("password", "")[:1024]
+        ip = request.remote_addr or "unknown"
+        if login_throttled(ip, username):
+            app.logger.warning("Login throttled for %s", ip)
+            return render_template("login.html", error=True, throttled=True), 429
         user_data = _USERS.get(username)
         if user_data and check_password_hash(user_data["hash"], password):
+            clear_login_failures(ip, username)
             # New session on login (no fixation of a pre-login session).
             session.clear()
             session["user"] = username
             session["role"] = user_data["role"]
             session.permanent = HOSTED_MODE
             return redirect(g.get("ingress", "") + "/")
+        record_login_failure(ip, username)
         return render_template("login.html", error=True)
     return render_template("login.html", error=False)
 
@@ -1689,7 +1818,10 @@ def uploaded_file(filename):
     parts = filename.rsplit(".", 1)
     if len(parts) != 2 or parts[1].lower() not in ALLOWED_EXT:
         return "Not found", 404
-    return send_from_directory(UPLOAD_DIR, filename)
+    resp = send_from_directory(UPLOAD_DIR, filename)
+    # Label photos are personal: never store them in shared (CDN) caches.
+    resp.headers["Cache-Control"] = "private, max-age=3600"
+    return resp
 
 
 # ── AI Provider Functions ─────────────────────────────────────────────────────
@@ -2595,7 +2727,7 @@ def api_ai_settings_get():
         settings[f"{p}_model"] = opts.get(f"{p}_model", "")
     keys = {f: bool(opts.get(f, "").strip()) for f in AI_KEY_FIELDS}
     return jsonify(ok=True, settings=settings, keys=keys, overrides=overrides,
-                   configured=_is_ai_configured(opts))
+                   configured=_is_ai_configured(opts), locked=LOCK_AI_SETTINGS)
 
 
 @app.route("/api/ai-settings", methods=["POST"])
@@ -2603,6 +2735,8 @@ def api_ai_settings_save():
     denied = _ai_settings_forbidden()
     if denied:
         return denied
+    if LOCK_AI_SETTINGS:
+        return jsonify(ok=False, error="ai_settings_locked"), 403
     payload = request.get_json(silent=True)
     if payload is None or not isinstance(payload, dict):
         return jsonify(ok=False, error="json_body_required"), 400
