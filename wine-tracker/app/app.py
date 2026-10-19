@@ -2341,7 +2341,7 @@ Rules:
 
 LOOKUP_DAILY_CAP = int(os.environ.get("LOOKUP_DAILY_CAP", "30"))
 LOOKUP_MAX_SEARCHES = int(os.environ.get("LOOKUP_MAX_SEARCHES", "3"))
-LOOKUP_TIMEOUT_SECONDS = float(os.environ.get("LOOKUP_TIMEOUT_SECONDS", "90"))
+LOOKUP_TIMEOUT_SECONDS = float(os.environ.get("LOOKUP_TIMEOUT_SECONDS", "60"))
 _lookup_usage = defaultdict(int)  # (user, ISO date) -> lookups today
 _lookup_lock = threading.Lock()
 _LOOKUP_STR_MAX = 300
