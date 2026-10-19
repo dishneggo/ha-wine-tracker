@@ -45,7 +45,8 @@ git clone https://github.com/dishneggo/ha-wine-tracker.git /opt/nursestar/wine-t
 cd /opt/nursestar/wine-tracker
 git checkout <release-tag-or-commit>      # always deploy a reviewed commit on main
 install -d -o 10001 -g 10001 -m 750 data
-install -d -o root -g root -m 700 secrets backups
+install -d -o root -g 10001 -m 750 secrets
+install -d -o root -g root -m 700 backups
 ```
 
 ## 2. App secrets: /opt/nursestar/wine-tracker/.env (root:root 0600)
@@ -71,9 +72,33 @@ chmod 600 .env; chown root:root .env
 grep -c '^ANTHROPIC_API_KEY=sk-' .env    # prints 1, not the key
 ```
 
-App users: see the section added by the hosted-auth PR (`secrets/users.json`).
-Until that PR is deployed, the plain `USERS=` line is used; set it the same
-way with `read -rs`.
+### App users: secrets/users.json (hashed, root:10001 0640)
+
+The app refuses to start in `HOSTED_MODE` without at least one user. The
+file holds werkzeug hashes only. Generate a hash with the image's own
+Python (password is read with getpass and never shown):
+
+```bash
+cd /opt/nursestar/wine-tracker
+docker compose -f deploy/nursestar/compose.yml build
+docker run --rm -it --entrypoint python3 wine-tracker:nursestar hash_password.py
+# prints pbkdf2:sha256:600000$...  (the hash, not the password)
+```
+
+Write the file (paste the hash when prompted; it is not echoed):
+
+```bash
+read -rs -p 'Hash: ' H; echo
+python3 - "$H" > secrets/users.json <<'PY'
+import json, sys
+print(json.dumps({"diego": {"hash": sys.argv[1], "role": "admin"}}, indent=2))
+PY
+unset H
+chown root:10001 secrets secrets/users.json
+chmod 750 secrets; chmod 640 secrets/users.json
+```
+
+Add a read-only user by adding another entry with `"role": "readonly"`.
 
 ## 3. Build and start
 

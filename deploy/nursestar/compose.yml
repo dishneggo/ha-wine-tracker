@@ -26,6 +26,8 @@ services:
     volumes:
       # -> data/wine-tracker/wine.db, data/wine-tracker/uploads/
       - ${WT_ROOT:-/opt/nursestar/wine-tracker}/data:/data
+      # Hashed logins only (no plaintext). root:10001 0640 on the host.
+      - ${WT_ROOT:-/opt/nursestar/wine-tracker}/secrets/users.json:/run/secrets/users.json:ro
     # The host has no swap. Cap memory so an overshoot kills only this
     # container (restart policy brings it back), never nginx or neighbours.
     mem_limit: 512m

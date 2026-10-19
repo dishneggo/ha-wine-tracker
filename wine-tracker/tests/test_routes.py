@@ -1004,7 +1004,7 @@ class TestAuth:
         # Login first
         client.post("/login", data={"username": "admin", "password": "secret"})
         # Then logout
-        resp = client.get("/logout")
+        resp = client.post("/logout")
         assert resp.status_code == 302
         # Verify logged out - next request should redirect to login
         resp = client.get("/")
@@ -1135,7 +1135,7 @@ class TestAuth:
         # Login as admin first to add a wine
         client.post("/login", data={"username": "admin", "password": "secret"})
         client.post("/add", data={"name": "Visible Wine", "quantity": "2"}, headers=AJAX)
-        client.get("/logout")
+        client.post("/logout")
         # Login as readonly
         client.post("/login", data={"username": "viewer", "password": "pass"})
         resp = client.get("/")
@@ -1234,7 +1234,7 @@ class TestDevAuth:
         client.post("/login", data={"username": "admin", "password": "pass1"})
         resp = client.get("/")
         assert resp.status_code == 200
-        client.get("/logout")
+        client.post("/logout")
         # Viewer can login
         client.post("/login", data={"username": "viewer", "password": "pass2"})
         resp = client.get("/")
@@ -1254,7 +1254,7 @@ class TestDevAuth:
         client.post("/login", data={"username": "admin", "password": "pass"})
         resp = client.get("/")
         assert resp.status_code == 200
-        client.get("/logout")
+        client.post("/logout")
         resp = client.get("/", follow_redirects=False)
         assert resp.status_code == 302
         assert "/login" in resp.headers["Location"]
@@ -1327,7 +1327,7 @@ class TestUserPrefsAuth:
         client = self._make_auth_app()
         client.post("/login", data={"username": "admin", "password": "secret"})
         client.post("/api/prefs", json={"wine-theme": "dark"})
-        client.get("/logout")
+        client.post("/logout")
         client.post("/login", data={"username": "viewer", "password": "pass"})
         client.post("/api/prefs", json={"wine-theme": "light"},
                     headers={"X-Requested-With": "XMLHttpRequest"})
