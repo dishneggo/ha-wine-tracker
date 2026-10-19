@@ -1559,14 +1559,28 @@ class TestAiSettings:
         assert opts_used["anthropic_model"] == "chat-m"
 
     def test_test_endpoint_reports_error(self, client):
-        """Provider errors surface as 502 with a message."""
+        """Provider errors surface as 502 with a code, never the exception text."""
         client.post("/api/ai-settings", json={
             "ai_provider": "anthropic", "anthropic_api_key": "sk-t",
         })
         with patch("app._call_chat_anthropic", side_effect=RuntimeError("bad key")):
             resp = client.post("/api/ai-settings/test", headers=self.XHR)
         assert resp.status_code == 502
-        assert "bad key" in resp.get_json()["error"]
+        assert resp.get_json()["error"] == "api_error"
+        assert "bad key" not in resp.get_data(as_text=True)
+
+    def test_test_endpoint_maps_auth_error(self, client):
+        """An SDK AuthenticationError becomes auth_error (UI can explain it)."""
+        client.post("/api/ai-settings", json={
+            "ai_provider": "anthropic", "anthropic_api_key": "sk-t",
+        })
+
+        class AuthenticationError(Exception):
+            pass
+        with patch("app._call_chat_anthropic", side_effect=AuthenticationError("invalid x-api-key")):
+            resp = client.post("/api/ai-settings/test", headers=self.XHR)
+        assert resp.status_code == 502
+        assert resp.get_json()["error"] == "auth_error"
 
     def test_test_endpoint_unconfigured(self, client):
         """Without a configured provider the test endpoint returns 400."""
