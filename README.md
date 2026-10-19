@@ -23,8 +23,8 @@
 </p>
 
 Wine Tracker manages your wine cellar from label photo to tasting note. Snap a
-photo and let AI fill in the details, search Vivino to import ratings and
-prices, then track bottles, drink windows and value over time. It runs as a
+photo and let AI fill in the details, look a wine up on the web (with
+sources), then track bottles, drink windows and value over time. It runs as a
 Home Assistant add-on in the HA sidebar, or as a standalone Docker container
 with its own logins.
 
@@ -63,10 +63,11 @@ with its own logins.
 - AI label recognition fills in all fields, including maturity phases, taste
   profile and food pairings (Anthropic, OpenAI, OpenRouter, Ollama, MiniMax,
   Mistral)
-- Vivino search by name with ratings, region and price, plus a regional
-  fallback chain so country-specific labels actually show up
-- Vivino ID management: view, edit and test the wine link in the edit modal
-- Reload missing data: re-analyze incomplete wines via AI or Vivino
+- Web lookup by name (Anthropic web search) with region, grape, price and
+  rating where a source states them, and links to the sources used. This
+  fork removed the Vivino search because Vivino's terms forbid automated access
+- Vivino ID management (manual): view, edit and test the wine link in the edit modal
+- Reload missing data: re-analyze incomplete wines via AI or web lookup
 - AI sommelier chat with full cellar CRUD: ask about your cellar, upload label
   photos, add, edit and delete wines from the conversation, with persistent
   chat history
@@ -106,7 +107,7 @@ with its own logins.
   <img src="assets/261018_statistics_screen.png" alt="Statistics with globe and charts" width="800">
 </p>
 <p align="center">
-  <img src="assets/261018_add_wine_screen.png" alt="Add a wine via AI, Vivino or manually" width="800">
+  <img src="assets/261018_add_wine_screen.png" alt="Add a wine via AI, web lookup or manually" width="800">
   <img src="assets/261018_wine_edit_screen.png" alt="Edit wine details" width="800">
 </p>
 
@@ -117,7 +118,8 @@ with its own logins.
 - Docker 24+ with Compose v2 for the standalone container, on amd64 or arm64
 - An API key for one AI provider, only if you want label recognition and the
   sommelier chat. Ollama runs locally and needs no key.
-- Everything else, including Vivino search, works without an account
+- Everything else works without an account. The web lookup needs
+  `AI_PROVIDER=anthropic` and a key
 
 ## Installation
 
@@ -201,7 +203,7 @@ environment variables.
 
 | Option | ENV | Default | Description |
 |--------|-----|---------|-------------|
-| `currency` | `CURRENCY` | `CHF` | Currency shown with prices. `CHF`, `EUR`, `USD`, `GBP`, `CAD`, `AUD`, `SEK`, `NOK`, `DKK`, `PLN`, `CZK` and `BRL` also pick the Vivino region; any other value falls back to US/USD there. |
+| `currency` | `CURRENCY` | `CHF` | Currency shown with prices. `CHF`, `EUR`, `USD`, `GBP`, `CAD`, `AUD`, `SEK`, `NOK`, `DKK`, `PLN`, `CZK` and `BRL` are the supported values; the web lookup asks for prices in this currency. |
 | `language` | `LANGUAGE` | `de` | UI language: `de`, `en`, `fr`, `it`, `es`, `pt`, `nl` |
 
 ### AI provider
@@ -267,7 +269,7 @@ the uploaded images, and survives updates, restarts and Home Assistant updates.
 ## Usage
 
 Add a wine with the **+** button and pick one of three ways: snap a label photo
-for AI recognition, search Vivino by name, or fill in the fields yourself. The
+for AI recognition, look it up on the web by name, or fill in the fields yourself. The
 AI route also fills maturity phases, taste profile and food pairings.
 
 Use the quick filter in the header for type, vintage and grape. For anything

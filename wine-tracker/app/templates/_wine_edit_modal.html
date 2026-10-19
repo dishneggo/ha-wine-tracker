@@ -25,7 +25,7 @@
         <button class="modal-close" onclick="tryCloseWineModal()">×</button>
       </div>
     </div>
-    <!-- Source Step: choose AI / Vivino / Manual -->
+    <!-- Source Step: choose AI / Web lookup / Manual -->
     <div id="sourceStep" class="source-step" style="display:none;">
       <div class="source-step-header">
         <h3>{{ t.source_step_title }}</h3>
@@ -41,6 +41,7 @@
           </div>
         </div>
         {% endif %}
+        {% if web_lookup_enabled %}
         <div class="source-option" tabindex="0" role="button" onclick="onSourceVivino()">
           <i class="mdi mdi-magnify"></i>
           <div class="source-text">
@@ -48,6 +49,7 @@
             <div class="source-desc">{{ t.vivino_desc }}</div>
           </div>
         </div>
+        {% endif %}
         <div class="source-option" tabindex="0" role="button" onclick="skipToManual()">
           <i class="mdi mdi-pencil"></i>
           <div class="source-text">
@@ -90,15 +92,24 @@
     </div>
     {% endif %}
 
-    <!-- Vivino Panel (shown after clicking Vivino option) -->
+    {% if web_lookup_enabled %}
+    <!-- Web lookup panel (shown after clicking the web lookup option) -->
     <div id="vivinoStep" class="vivino-panel" style="display:none;">
       <h3><i class="mdi mdi-magnify"></i> {{ t.vivino_title }}</h3>
       <p>{{ t.vivino_desc }}</p>
-      <input type="text" class="vivino-search-input" id="vivinoSearchInput"
-             placeholder="{{ t.vivino_placeholder }}" oninput="debouncedVivinoSearch()">
+      <div class="lookup-search-row">
+        <input type="text" class="vivino-search-input" id="vivinoSearchInput" maxlength="200"
+               placeholder="{{ t.vivino_placeholder }}"
+               onkeydown="if (event.key === 'Enter') { event.preventDefault(); startWebLookup(); }">
+        <button type="button" class="btn-submit lookup-search-btn" id="lookupSearchBtn" onclick="startWebLookup()">
+          <i class="mdi mdi-magnify"></i> {{ t.lookup_button }}
+        </button>
+      </div>
+      <p class="lookup-hint">{{ t.lookup_hint }}</p>
       <div id="vivinoStatus" class="vivino-status" style="display:none;"></div>
       <div id="vivinoResults" class="vivino-results"></div>
     </div>
+    {% endif %}
 
     <form method="post" id="wineForm" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -138,9 +149,11 @@
                 <i class="mdi mdi-robot"></i> {{ t.reload_ai_desc }}
               </button>
               {% endif %}
+              {% if web_lookup_enabled %}
               <button type="button" class="reload-popover-option" onclick="reloadViaVivino(); closeReloadPopover();">
                 <i class="mdi mdi-web"></i> {{ t.reload_vivino_desc }}
               </button>
+              {% endif %}
             </div>
           </div>
           <button type="submit" class="btn-submit" id="wineSubmitBtn">{{ t.btn_save }}</button>
@@ -368,22 +381,43 @@ function skipToManual() {
   showFormStep();
 }
 
-// ── Vivino Search Functions ─────────────────────────────────────────────────
+// ── Web lookup (replaces the Vivino search) ─────────────────────────────────
+// Each lookup is a paid web search, so it runs on Enter / button only,
+// never while typing. All result text is escaped before it touches the DOM:
+// it comes from the public web via the model and is untrusted.
 
-var _vivinoTimer = null;
 var _vivinoAbort = null;
 var _vivinoResults = [];
 
-function debouncedVivinoSearch() {
-  if (_vivinoTimer) clearTimeout(_vivinoTimer);
+function _esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function _lookupErrorText(err) {
+  if (err === 'daily_limit') return T.lookup_daily_limit || 'Daily lookup limit reached';
+  return T.vivino_error || 'Search failed';
+}
+
+function postWebLookup(query, signal) {
+  return fetch(INGRESS + '/api/wine-lookup', {
+    method: 'POST',
+    signal: signal,
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    body: JSON.stringify({ q: query })
+  }).then(function(r) { return r.json(); });
+}
+
+function startWebLookup() {
   var q = (document.getElementById('vivinoSearchInput').value || '').trim();
+  var status = document.getElementById('vivinoStatus');
   if (q.length < 2) {
     document.getElementById('vivinoResults').innerHTML = '';
-    var status = document.getElementById('vivinoStatus');
     if (status) { status.style.display = 'none'; status.className = 'vivino-status'; }
     return;
   }
-  _vivinoTimer = setTimeout(function() { vivinoSearch(q); }, 400);
+  vivinoSearch(q);
 }
 
 function vivinoSearch(query) {
@@ -392,17 +426,16 @@ function vivinoSearch(query) {
 
   var status = document.getElementById('vivinoStatus');
   var results = document.getElementById('vivinoResults');
-  status.textContent = T.vivino_searching || 'Searching\u2026';
+  var btn = document.getElementById('lookupSearchBtn');
+  status.textContent = T.vivino_searching || 'Searching the web\u2026';
   status.className = 'vivino-status';
   status.style.display = '';
   results.innerHTML = '';
+  if (btn) btn.disabled = true;
 
-  fetch(INGRESS + '/api/vivino-search?q=' + encodeURIComponent(query), {
-    signal: _vivinoAbort.signal,
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-  .then(function(r) { return r.json(); })
+  postWebLookup(query, _vivinoAbort.signal)
   .then(function(data) {
+    if (btn) btn.disabled = false;
     status.style.display = 'none';
     if (data.ok && data.results && data.results.length > 0) {
       _vivinoResults = data.results;
@@ -414,12 +447,13 @@ function vivinoSearch(query) {
       status.style.display = '';
     } else {
       _vivinoResults = [];
-      status.textContent = T.vivino_error || 'Search failed';
+      status.textContent = _lookupErrorText(data.error);
       status.className = 'vivino-status error';
       status.style.display = '';
     }
   })
   .catch(function(err) {
+    if (btn) btn.disabled = false;
     if (err.name === 'AbortError') return;
     _vivinoResults = [];
     status.textContent = T.vivino_error || 'Search failed';
@@ -429,87 +463,70 @@ function vivinoSearch(query) {
   });
 }
 
+function _sourcesHtml(sources) {
+  if (!sources || !sources.length) return '';
+  var links = sources.slice(0, 5).map(function(u) {
+    var parsed;
+    try { parsed = new URL(u); } catch (e) { return ''; }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+    var host = parsed.hostname;
+    return '<a href="' + _esc(u) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">' + _esc(host) + '</a>';
+  }).filter(Boolean);
+  if (!links.length) return '';
+  return '<div class="lookup-sources">' + _esc(T.lookup_sources || 'Sources') + ': ' + links.join(', ') + '</div>';
+}
+
 function renderVivinoResults(items) {
   var container = document.getElementById('vivinoResults');
   container.innerHTML = items.map(function(item, idx) {
     var meta = [];
-    if (item.year) meta.push(item.year);
-    if (item.wine_type) meta.push(T['wine_type_' + item.wine_type] || item.wine_type);
-    if (item.region) meta.push(item.region);
+    if (item.year) meta.push(_esc(item.year));
+    if (item.wine_type) meta.push(_esc(T['wine_type_' + item.wine_type] || item.wine_type));
+    if (item.region) meta.push(_esc(item.region));
 
     var ratingHtml = '';
     if (item.rating) {
       ratingHtml = '<span class="vivino-result-rating"><i class="mdi mdi-star"></i> ' +
-        Number(item.rating).toFixed(1) + '</span>';
+        _esc(Number(item.rating).toFixed(1)) + '</span>';
     }
 
-    var imgHtml = item.image_url
-      ? '<img class="vivino-result-img" src="' + item.image_url + '" alt="" loading="lazy">'
-      : '<div class="vivino-result-img" style="display:flex;align-items:center;justify-content:center;background:var(--surface);"><i class="mdi mdi-glass-wine" style="font-size:1.5rem;opacity:.4"></i></div>';
+    var imgHtml = '<div class="vivino-result-img" style="display:flex;align-items:center;justify-content:center;background:var(--surface);"><i class="mdi mdi-glass-wine" style="font-size:1.5rem;opacity:.4"></i></div>';
 
-    return '<div class="vivino-result-item" tabindex="0" role="button" onclick="selectVivinoResult(' + idx + ')">' +
+    return '<div class="vivino-result-item" tabindex="0" role="button" onclick="selectVivinoResult(' + idx + ')" onkeydown="if (event.key === \'Enter\') selectVivinoResult(' + idx + ')">' +
       imgHtml +
       '<div class="vivino-result-info">' +
-        '<div class="vivino-result-name">' + (item.name || '').replace(/</g, '&lt;') + '</div>' +
+        '<div class="vivino-result-name">' + _esc(item.name) + '</div>' +
         '<div class="vivino-result-meta">' + meta.join(' \u00b7 ') + '</div>' +
         ratingHtml +
+        _sourcesHtml(item.sources) +
       '</div>' +
     '</div>';
   }).join('');
 }
 
-function selectVivinoResult(index) {
-  var item = _vivinoResults[index];
-  if (!item) return;
-
+function _lookupFields(item) {
   var fields = {};
-  if (item.name) fields.name = item.name;
-  if (item.year) fields.vintage = item.year;
-  if (item.wine_type) fields.wine_type = item.wine_type;
-  if (item.region) fields.region = item.region;
-  if (item.grape) fields.grape = item.grape;
-  if (item.price) fields.price = item.price;
-  if (item.rating) fields.rating = item.rating;
-
-  document.getElementById('wine_vivino_id').value = item.vivino_id || '';
-
-  populateFormFromAi(fields, null);
-
-  if (item.rating) {
-    var starVal = Math.round(item.rating);
-    if (starVal >= 1 && starVal <= 5) {
-      var starEl = document.getElementById('wine_star' + starVal);
-      if (starEl) starEl.checked = true;
-    }
+  var src = item.fields || {};
+  for (var k in src) {
+    if (Object.prototype.hasOwnProperty.call(src, k)) fields[k] = src[k];
   }
+  return fields;
+}
 
-  if (item.image_url) {
-    downloadVivinoImage(item.image_url);
+function _applyLookupRating(item) {
+  if (!item.rating) return;
+  var starVal = Math.round(item.rating);
+  if (starVal >= 1 && starVal <= 5) {
+    var starEl = document.getElementById('wine_star' + starVal);
+    if (starEl) starEl.checked = true;
   }
 }
 
-function downloadVivinoImage(url) {
-  fetch(INGRESS + '/api/vivino-image', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest'
-    },
-    body: JSON.stringify({ url: url })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (data.ok && data.filename) {
-      document.getElementById('aiImageField').value = data.filename;
-      var preview = document.getElementById('winePreview');
-      var img = preview.querySelector('img');
-      if (!img) { img = document.createElement('img'); preview.prepend(img); }
-      img.src = INGRESS + '/uploads/' + data.filename;
-      var cam = preview.querySelector('.mdi-camera');
-      if (cam) cam.style.display = 'none';
-    }
-  })
-  .catch(function() { /* image download is best-effort */ });
+function selectVivinoResult(index) {
+  var item = _vivinoResults[index];
+  if (!item) return;
+  populateFormFromAi(_lookupFields(item), null);
+  _applyLookupRating(item);
 }
 
 // ── AI Functions ────────────────────────────────────────────────────────────
@@ -799,35 +816,16 @@ function reloadViaVivino() {
 
   setReloadLoading(true);
 
-  fetch(INGRESS + '/api/vivino-search?q=' + encodeURIComponent(query))
-  .then(function(r) { return r.json(); })
+  postWebLookup(query)
   .then(function(data) {
     setReloadLoading(false);
     if (data.ok && data.results && data.results.length > 0) {
       var item = data.results[0];
-      var fields = {};
-      if (item.name) fields.name = item.name;
-      if (item.year) fields.vintage = item.year;
-      if (item.wine_type) fields.wine_type = item.wine_type;
-      if (item.region) fields.region = item.region;
-      if (item.grape) fields.grape = item.grape;
-      if (item.price) fields.price = item.price;
-      if (item.rating) fields.rating = item.rating;
-
-      var vivinoField = document.getElementById('wine_vivino_id');
-      if (vivinoField && item.vivino_id) {
-        vivinoField.value = item.vivino_id;
-      }
-
-      var hasImage = document.getElementById('aiImageField').value
-        || document.querySelector('#winePreview img');
-      if (!hasImage && item.image_url) {
-        downloadVivinoImage(item.image_url);
-      }
-
-      populateFormMerge(fields, null);
-    } else {
+      populateFormMerge(_lookupFields(item), null);
+    } else if (data.ok) {
       showReloadToast(T.vivino_no_results, false);
+    } else {
+      showReloadToast(_lookupErrorText(data.error), false);
     }
   })
   .catch(function() {

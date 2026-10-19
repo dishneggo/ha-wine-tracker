@@ -8,15 +8,15 @@ A wine cellar tracker that runs directly in your Home Assistant sidebar.
 ## About
 
 Wine Tracker manages your whole wine collection from within Home Assistant.
-Snap a label photo and let AI fill in the details, search Vivino to import
-wines with ratings and pricing, or type everything in yourself.
+Snap a label photo and let AI fill in the details, look a wine up on
+the web with sources, or type everything in yourself.
 
 **Key features:**
 
 - AI label recognition with six providers (Anthropic, OpenAI, OpenRouter,
   Ollama, MiniMax, Mistral)
-- Vivino search with direct import and a regional fallback chain for
-  country-specific labels
+- Web lookup by name with sources (Anthropic web search; replaces the
+  Vivino search)
 - AI sommelier chat with image upload, persistent history and full cellar CRUD
 - Maturity graph, taste profile and food pairings, auto-filled on every AI add
 - Cellar view modes: Cards, List, Grid and a sortable Table view
