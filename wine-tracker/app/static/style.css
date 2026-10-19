@@ -1073,6 +1073,13 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
   font-size: .95rem; box-sizing: border-box;
 }
 .vivino-search-input:focus { border-color: var(--accent); }
+.lookup-search-row { display: flex; gap: .5rem; align-items: stretch; }
+.lookup-search-row .vivino-search-input { flex: 1; min-width: 0; }
+.lookup-search-btn { flex: 0 0 auto; width: auto; padding: 0 1rem; white-space: nowrap; }
+.lookup-search-btn:disabled { opacity: .6; cursor: progress; }
+.lookup-hint { font-size: .75rem !important; margin: .5rem 0 0 !important; }
+.lookup-sources { font-size: .72rem; color: var(--muted); margin-top: .25rem; overflow-wrap: anywhere; }
+.lookup-sources a { color: var(--muted); text-decoration: underline; }
 .vivino-results { margin-top: 1rem; max-height: 480px; overflow-y: auto; }
 .vivino-result-item {
   display: flex; gap: 1rem; padding: .75rem .5rem;
