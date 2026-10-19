@@ -1915,6 +1915,61 @@ def uploaded_file(filename):
 
 # ── AI Provider Functions ─────────────────────────────────────────────────────
 
+ANTHROPIC_MAX_TOKENS = 4096  # leaves room for thinking blocks before the answer
+
+
+class AIEmptyResponseError(RuntimeError):
+    """The provider answered, but with no text content (e.g. thinking only)."""
+
+
+def _anthropic_text(message):
+    """Join the text blocks of an Anthropic response.
+
+    Newer models can return thinking (or other non-text) blocks before the
+    answer, so content[0] is not always text. Raises AIEmptyResponseError
+    when there is no text at all, naming the stop_reason.
+    """
+    parts = [getattr(b, "text", "") or "" for b in (getattr(message, "content", None) or [])
+             if getattr(b, "type", "") == "text"]
+    text = "".join(parts)
+    if not text.strip():
+        stop = getattr(message, "stop_reason", None) or "unknown"
+        raise AIEmptyResponseError(f"Anthropic response contained no text (stop_reason={stop})")
+    return text
+
+
+_AI_ERROR_CODES = (  # SDK exception class names (Anthropic and OpenAI SDKs)
+    ("timeout", "timeout"),
+    ("authentication", "auth_error"),
+    ("permissiondenied", "auth_error"),
+    ("notfound", "model_not_found"),
+    ("ratelimit", "rate_limited"),
+    ("connection", "connection_error"),
+)
+
+
+def _ai_error_code(e):
+    """Map a provider exception to a short, non-sensitive error code."""
+    if isinstance(e, AIEmptyResponseError):
+        return "empty_response"
+    name = type(e).__name__.lower()
+    for needle, code in _AI_ERROR_CODES:
+        if needle in name:
+            return code
+    if "timeout" in str(e).lower():
+        return "timeout"
+    return "api_error"
+
+
+def _ai_error_response(e, where, status=500, **extra):
+    """Log an AI provider failure server-side; return a generic client error.
+
+    Exception text can carry provider internals, so it only goes to the log.
+    """
+    app.logger.exception("%s failed: %s", where, type(e).__name__)
+    return jsonify({"ok": False, "error": _ai_error_code(e), **extra}), status
+
+
 def _call_anthropic(image_b64, media_type, prompt, opts):
     """Call Anthropic Claude API (vision or text-only)."""
     import anthropic
@@ -1927,10 +1982,10 @@ def _call_anthropic(image_b64, media_type, prompt, opts):
     content.append({"type": "text", "text": prompt})
     message = client.messages.create(
         model=model,
-        max_tokens=1024,
+        max_tokens=ANTHROPIC_MAX_TOKENS,
         messages=[{"role": "user", "content": content}],
     )
-    return message.content[0].text
+    return _anthropic_text(message)
 
 
 def _call_openai(image_b64, media_type, prompt, opts):
@@ -2043,11 +2098,11 @@ def _call_chat_anthropic(messages, system_prompt, opts, image_b64=None, media_ty
             ]}]
     message = client.messages.create(
         model=model,
-        max_tokens=2048,
+        max_tokens=ANTHROPIC_MAX_TOKENS,
         system=system_prompt,
         messages=messages,
     )
-    return message.content[0].text
+    return _anthropic_text(message)
 
 
 def _call_chat_openai(messages, system_prompt, opts, image_b64=None, media_type=None):
@@ -2327,11 +2382,7 @@ Rules:
         app.logger.exception("AI analyze-wine JSON parse error")
         return jsonify({"ok": False, "error": "parse_error", "image_filename": image_filename}), 500
     except Exception as e:
-        app.logger.exception("AI analyze-wine error: %s", e)
-        error_msg = str(e)
-        if "timeout" in error_msg.lower():
-            return jsonify({"ok": False, "error": "timeout", "image_filename": image_filename}), 500
-        return jsonify({"ok": False, "error": "api_error", "message": error_msg, "image_filename": image_filename}), 500
+        return _ai_error_response(e, "AI analyze-wine", image_filename=image_filename)
 
 
 # ── Web lookup (replaces the Vivino integration) ────────────────────────────
@@ -2415,7 +2466,7 @@ def _anthropic_web_lookup(query, opts, client=None):
     texts, urls = [], set()
     usage = {"input_tokens": 0, "output_tokens": 0, "web_search_requests": 0}
     for _ in range(3):  # initial turn plus up to two pause_turn continuations
-        msg = client.messages.create(model=model, max_tokens=2048, messages=messages, tools=tools)
+        msg = client.messages.create(model=model, max_tokens=ANTHROPIC_MAX_TOKENS, messages=messages, tools=tools)
         u = getattr(msg, "usage", None)
         if u is not None:
             usage["input_tokens"] += getattr(u, "input_tokens", 0) or 0
@@ -2704,20 +2755,17 @@ def reanalyze_wine():
         fields = _analyze_wine_from_context(opts, image_b64, media_type, wine_context)
         return jsonify({"ok": True, "fields": fields})
 
+    except json.JSONDecodeError:
+        # JSONDecodeError subclasses ValueError, so it must be caught first
+        app.logger.exception("AI reanalyze-wine JSON parse error")
+        return jsonify({"ok": False, "error": "parse_error"}), 500
     except ValueError as e:
         code = str(e)
         if code in ("no_data", "invalid_provider"):
             return jsonify({"ok": False, "error": code}), 400
-        raise
-    except json.JSONDecodeError:
-        app.logger.exception("AI reanalyze-wine JSON parse error")
-        return jsonify({"ok": False, "error": "parse_error"}), 500
+        return _ai_error_response(e, "AI reanalyze-wine")
     except Exception as e:
-        app.logger.exception("AI reanalyze-wine error: %s", e)
-        error_msg = str(e)
-        if "timeout" in error_msg.lower():
-            return jsonify({"ok": False, "error": "timeout"}), 500
-        return jsonify({"ok": False, "error": "api_error", "message": error_msg}), 500
+        return _ai_error_response(e, "AI reanalyze-wine")
 
 
 
@@ -2909,7 +2957,7 @@ def api_ai_settings_test():
         )
         return jsonify(ok=True, reply=(reply or "").strip()[:100])
     except Exception as e:
-        return jsonify(ok=False, error=str(e)[:300]), 502
+        return _ai_error_response(e, "AI settings test", status=502)
 
 
 def _list_provider_models(provider, opts):
@@ -2968,7 +3016,7 @@ def api_ai_settings_models():
     try:
         models = _list_provider_models(provider, load_options())
     except Exception as e:
-        return jsonify(ok=False, error=str(e)[:200]), 502
+        return _ai_error_response(e, "AI model list", status=502)
     if models is None:
         return jsonify(ok=False, error="not_configured"), 400
     return jsonify(ok=True, models=models[:300])
@@ -3678,11 +3726,7 @@ def api_chat():
             result["wine_action"] = wine_action
         return jsonify(result)
     except Exception as e:
-        app.logger.exception("Chat error: %s", e)
-        error_msg = str(e)
-        if "timeout" in error_msg.lower():
-            return jsonify({"ok": False, "error": "timeout"}), 500
-        return jsonify({"ok": False, "error": "api_error", "message": error_msg}), 500
+        return _ai_error_response(e, "Chat")
 
 # ── API for Home Assistant sensors ───────────────────────────────────────────
 
