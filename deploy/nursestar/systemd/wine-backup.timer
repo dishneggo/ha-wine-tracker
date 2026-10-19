@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Wine Tracker backup nightly at 3:15 AM ET
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 America/New_York
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

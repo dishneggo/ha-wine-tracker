@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh Cloudflare IP ranges for the wine.clearnuvo.com nginx vhost
+Wants=network-online.target
+After=network-online.target nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/nursestar/wine-tracker/deploy/nursestar/ops/cf-ips.sh

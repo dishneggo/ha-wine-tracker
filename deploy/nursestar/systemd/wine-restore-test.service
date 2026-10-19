@@ -1,0 +1,10 @@
+[Unit]
+Description=Wine Tracker monthly restore test from R2
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=WT_ROOT=/opt/nursestar/wine-tracker
+ExecStart=/opt/nursestar/wine-tracker/deploy/nursestar/ops/restore-test.sh
+Nice=10

@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Cloudflare IP ranges, second Sunday of each month 4:45 AM ET
+
+[Timer]
+# Sundays only, so it never lands in the Friday 8 AM to 6 PM ET blackout.
+OnCalendar=Sun *-*-08..14 04:45:00 America/New_York
+Persistent=false
+
+[Install]
+WantedBy=timers.target
