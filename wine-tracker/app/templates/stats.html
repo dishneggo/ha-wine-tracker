@@ -195,41 +195,47 @@
     <h2><i class="mdi mdi-calendar-range"></i> {{ t.stat_drink_windows }}</h2>
     <div class="stat-body">
       <p class="stat-subtitle">{{ t.stat_dw_subtitle }}</p>
-      {% set ns = namespace(max_total=0) %}
-      {% for item in dw_chart %}
-        {% set row_total = item.counts.values() | sum %}
-        {% if row_total > ns.max_total %}{% set ns.max_total = row_total %}{% endif %}
-      {% endfor %}
-      {% set short_desktop = dw_chart | length > 10 %}
-      {% set short_mobile = dw_chart | length > 5 %}
-      <div class="dw-chart">
-        {% for item in dw_chart %}
-        <div class="dw-bar-col{% if item.year == current_year %} dw-current{% endif %}">
-          <div class="dw-bar-stack">
-            {% for type_name in dw_type_order %}
-            {% if item.counts.get(type_name, 0) > 0 %}
-            {% set h = (item.counts[type_name] / ns.max_total * 100) | round %}
-            <div class="dw-bar-seg chart-hover"
-                 data-chart="dw" data-year="{{ item.year }}" data-key="{{ type_name }}"
-                 style="height:{{ h }}%; background:{{ type_colors.get(type_name, 'var(--wine-anderes)') }}">
+      {% set axis_max = dw_axis.max %}
+      {% set n_years = dw_chart | length %}
+      <div class="dw-plot{% if n_years > 12 %} dw-many{% endif %}">
+        <div class="dw-yaxis" aria-hidden="true">
+          {% for tick in dw_axis.ticks %}
+          <span class="dw-ytick" style="bottom:{{ (tick / axis_max * 100) | round(2) }}%">{{ tick }}</span>
+          {% endfor %}
+        </div>
+        <div class="dw-scroll">
+          <div class="dw-chart" style="--dw-years: {{ n_years }}">
+            <div class="dw-grid-area" aria-hidden="true">
+              {% for tick in dw_axis.ticks %}
+              <div class="dw-grid" style="bottom:{{ (tick / axis_max * 100) | round(2) }}%"></div>
+              {% endfor %}
             </div>
-            {% endif %}
+            {% for item in dw_chart %}
+            {% set major = item.year == current_year or (item.year % 5 == 0 and (item.year - current_year) | abs > 2) %}
+            <button type="button"
+                    class="dw-bar-col{% if item.year == current_year %} dw-current{% endif %}{% if major %} dw-major{% endif %}"
+                    data-year="{{ item.year }}" data-total="{{ item.total }}"
+                    data-counts='{{ item.counts | tojson }}'
+                    aria-label="{{ item.year }}: {{ item.total }} {{ t.stat_bottles }}">
+              <span class="dw-bar-stack">
+                {% for type_name in dw_type_order %}
+                {% if item.counts.get(type_name, 0) > 0 %}
+                {% set h = (item.counts[type_name] / axis_max * 100) | round(2) %}
+                <span class="dw-bar-seg" data-key="{{ type_name }}"
+                      style="height:{{ h }}%; background:{{ type_colors.get(type_name, 'var(--wine-anderes)') }}"></span>
+                {% endif %}
+                {% endfor %}
+              </span>
+              <span class="dw-bar-label">
+                <span class="dw-yr-full">{{ item.year }}</span>
+                <span class="dw-yr-short">{{ "%02d" | format(item.year % 100) }}</span>
+              </span>
+            </button>
             {% endfor %}
           </div>
-          <div class="dw-bar-label">
-            {% if short_desktop %}
-            <span class="dw-yr-short">{{ item.year % 100 }}</span>
-            <span class="dw-yr-full">{{ item.year }}</span>
-            {% elif short_mobile %}
-            <span class="dw-yr-short-mobile">{{ item.year % 100 }}</span>
-            <span class="dw-yr-full-mobile">{{ item.year }}</span>
-            {% else %}
-            {{ item.year }}
-            {% endif %}
-          </div>
         </div>
-        {% endfor %}
       </div>
+      <div class="dw-detail" aria-live="polite"></div>
       <div class="dw-legend">
         {% for type_name in dw_type_order %}
         <span class="dw-legend-item">
@@ -691,6 +697,67 @@ function editWine(id) {
       hideTip();
     }
   }, { passive: false });
+})();
+
+// ── Drink window chart: tap/click a year for a detail panel ──
+(function() {
+  var chart = document.querySelector('.dw-chart');
+  var panel = document.querySelector('.dw-detail');
+  if (!chart || !panel) return;
+  var COLORS = {};
+  {% for type_name in dw_type_order %}COLORS[{{ type_name | tojson }}] = {{ type_colors.get(type_name, 'var(--wine-anderes)') | tojson }};
+  {% endfor %}
+  var ORDER = {{ dw_type_order | tojson }};
+  var LBL_BOTTLES = T.stat_bottles || 'Bottles';
+  var LBL_TOTAL = T.stat_bottles_total || 'total';
+
+  function esc(s) { return escapeHtml(String(s)); }
+
+  function select(col) {
+    if (!col) return;
+    chart.querySelectorAll('.dw-selected').forEach(function(c) { c.classList.remove('dw-selected'); });
+    col.classList.add('dw-selected');
+    var yr = col.dataset.year;
+    var counts = JSON.parse(col.dataset.counts || '{}');
+    var names = (WINE_DATA.byDW || {})[yr] || {};
+    var html = '<div class="dw-detail-head"><span class="dw-detail-year">' + esc(yr) + '</span>'
+             + '<span class="dw-detail-total">' + esc(col.dataset.total) + ' ' + esc(LBL_BOTTLES) + ' ' + esc(LBL_TOTAL) + '</span></div>';
+    html += '<div class="dw-detail-rows">';
+    ORDER.forEach(function(type) {
+      var n = counts[type] || 0;
+      if (!n) return;
+      var wines = names[type] || [];
+      html += '<details class="dw-detail-row"><summary>'
+            + '<span class="donut-dot" style="background:' + COLORS[type] + '"></span>'
+            + '<span class="dw-detail-type">' + esc(WINE_TYPE_NAMES[type] || type) + '</span>'
+            + '<span class="dw-detail-count">' + n + '</span></summary>';
+      if (wines.length) {
+        html += '<div class="chart-tooltip-list">';
+        wines.forEach(function(w) {
+          html += '<a href="#" class="chart-tooltip-item" onclick="editWine(' + Number(w.id) + '); return false;">'
+                + '<span class="tt-name">' + esc(w.n + (w.y ? ' ' + w.y : '')) + '</span>'
+                + (w.q > 1 ? '<span class="tt-qty">' + Number(w.q) + '×</span>' : '') + '</a>';
+        });
+        html += '</div>';
+      }
+      html += '</details>';
+    });
+    html += '</div>';
+    panel.innerHTML = html;
+  }
+
+  chart.addEventListener('click', function(e) {
+    var col = e.target.closest('.dw-bar-col');
+    if (col) select(col);
+  });
+  // Start on the current year (or the first year) so values are visible without interaction
+  var initial = chart.querySelector('.dw-current') || chart.querySelector('.dw-bar-col');
+  select(initial);
+  var cur = chart.querySelector('.dw-current');
+  var scroller = chart.closest('.dw-scroll');
+  if (cur && scroller && scroller.scrollWidth > scroller.clientWidth) {
+    scroller.scrollLeft = cur.offsetLeft - scroller.clientWidth / 2;
+  }
 })();
 
 // ── Stock Chart: smooth Bézier curve ──

@@ -1667,31 +1667,74 @@ html[data-theme="homeassistant"]:not(.light) .toggle-slider { background: #76767
 /* ── Stats: Drink Window Chart ───────────────────────────────────────────── */
 .dw-chart-card { grid-column: 1 / -1; }
 .stat-subtitle { color: var(--muted); font-size: .85rem; margin: .4rem 0 .75rem 1.1rem; }
-.dw-chart {
-  display: flex; align-items: flex-end; gap: 6px;
-  height: 200px; padding: 0 .5rem;
-  border-bottom: 1px solid var(--border);
+.dw-plot { display: flex; align-items: stretch; gap: 4px; padding: 0 .5rem; }
+.dw-yaxis {
+  position: relative; flex: 0 0 auto; min-width: 1.6rem;
+  height: 200px; margin-bottom: 22px; /* align with the bar area above the labels */
+  font-size: .68rem; color: var(--muted); text-align: right;
 }
+.dw-ytick { position: absolute; right: 2px; transform: translateY(50%); line-height: 1; }
+.dw-scroll { flex: 1; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.dw-chart {
+  position: relative;
+  display: flex; align-items: flex-end; gap: 6px;
+  height: 222px; padding-bottom: 0;
+  min-width: calc(var(--dw-years, 1) * 8px);
+}
+.dw-grid-area { position: absolute; left: 0; right: 0; top: 0; bottom: 22px; pointer-events: none; }
+.dw-grid {
+  position: absolute; left: 0; right: 0; height: 0;
+  border-top: 1px dashed var(--border); opacity: .6;
+}
+.dw-grid:first-of-type { border-top-style: solid; opacity: 1; }
 .dw-bar-col {
   flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0;
-  height: 100%;
+  height: 100%; position: relative; z-index: 1;
+  background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .dw-bar-stack {
   width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
   border-radius: 4px 4px 0 0; overflow: hidden;
 }
-.dw-bar-seg { min-height: 2px; transition: height .4s ease; }
-.dw-bar-label { font-size: .72rem; color: var(--muted); margin-top: 6px; white-space: nowrap; }
-/* >10 years: always short */
-.dw-yr-full { display: none; }
-/* 6-10 years: full on desktop, short on mobile */
-.dw-yr-short-mobile { display: none; }
-@media (max-width: 600px) {
-  .dw-yr-full-mobile { display: none; }
-  .dw-yr-short-mobile { display: inline; }
+.dw-bar-seg { display: block; min-height: 2px; transition: height .4s ease; }
+.dw-bar-label {
+  height: 22px; box-sizing: border-box; padding-top: 6px;
+  font-size: .72rem; color: var(--muted); white-space: nowrap; line-height: 1;
 }
+/* Few years: full labels. Many years (>12): short 2-digit labels on desktop. */
+.dw-yr-short { display: none; }
+.dw-many .dw-yr-full { display: none; }
+.dw-many .dw-yr-short { display: inline; }
+.dw-bar-col:hover .dw-bar-stack { filter: brightness(1.12); }
+.dw-bar-col:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dw-selected .dw-bar-stack { box-shadow: 0 0 0 1.5px var(--text, #fff); }
 .dw-current .dw-bar-label { color: var(--accent); font-weight: 700; }
 .dw-current .dw-bar-stack { box-shadow: 0 0 0 1.5px var(--accent); }
+.dw-current.dw-selected .dw-bar-stack { box-shadow: 0 0 0 2.5px var(--accent); }
+/* Detail panel (tap/click a year) */
+.dw-detail { margin: .9rem .5rem 0; font-size: .82rem; }
+.dw-detail-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem;
+  border-bottom: 1px solid var(--border); padding-bottom: .35rem; margin-bottom: .35rem; }
+.dw-detail-year { font-weight: 800; font-size: 1rem; }
+.dw-detail-total { color: var(--accent); font-weight: 700; }
+.dw-detail-rows { display: flex; flex-direction: column; gap: .2rem; }
+.dw-detail-row summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; list-style: none; padding: 2px 0; }
+.dw-detail-row summary::-webkit-details-marker { display: none; }
+.dw-detail-type { flex: 1; }
+.dw-detail-count { font-weight: 700; }
+.dw-detail-row .chart-tooltip-list { padding: .2rem 0 .4rem 1.1rem; }
+@media (max-width: 480px) {
+  .dw-chart { gap: 2px; }
+  .dw-scroll { padding: 0 12px; }
+  /* Mobile: only every 5th year (plus current/first/last), full 4 digits, no overlap */
+  .dw-many .dw-bar-col .dw-bar-label { visibility: hidden; }
+  .dw-many .dw-bar-col.dw-major .dw-bar-label { visibility: visible; overflow: visible; }
+  .dw-many .dw-yr-full { display: inline; }
+  .dw-many .dw-yr-short { display: none; }
+  .dw-bar-label { font-size: .64rem; }
+  .dw-bar-stack { border-radius: 2px 2px 0 0; }
+}
 .dw-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-top: 1rem; font-size: .78rem; }
 .dw-legend-item { display: flex; align-items: center; gap: .3rem; }
 
