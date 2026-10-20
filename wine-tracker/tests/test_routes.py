@@ -1695,3 +1695,44 @@ class TestHealthz:
         assert resp.status_code == 200
         # Other pages still require login
         assert client.get("/").status_code == 302
+
+
+class TestDrinkWindowChart:
+    """Drink window chart: trimming, y-axis and mobile-friendly markup."""
+
+    def test_build_dw_chart_trims_tiny_edges(self):
+        import app as wine_app
+        data = {2013: {"Rotwein": 1}, 2014: {"Rotwein": 30}, 2015: {"Rotwein": 40},
+                2016: {"Weisswein": 30}, 2017: {"Rotwein": 1}}
+        rows = wine_app.build_dw_chart(data, current_year=2015)
+        assert [r["year"] for r in rows] == [2014, 2015, 2016]
+        assert rows[1]["total"] == 40
+
+    def test_build_dw_chart_keeps_current_year_and_fills_gaps(self):
+        import app as wine_app
+        data = {2020: {"Rotwein": 1}, 2023: {"Rotwein": 50}}
+        rows = wine_app.build_dw_chart(data, current_year=2020)
+        assert [r["year"] for r in rows] == [2020, 2021, 2022, 2023]
+        assert rows[1] == {"year": 2021, "counts": {}, "total": 0}
+
+    def test_build_dw_chart_empty(self):
+        import app as wine_app
+        assert wine_app.build_dw_chart({}) == []
+
+    def test_dw_y_axis_nice_ticks(self):
+        import app as wine_app
+        assert wine_app.dw_y_axis(0) == {"max": 1, "ticks": [0, 1]}
+        assert wine_app.dw_y_axis(3) == {"max": 3, "ticks": [0, 1, 2, 3]}
+        ax = wine_app.dw_y_axis(102)
+        assert ax["max"] >= 102 and len(ax["ticks"]) <= 5 and ax["ticks"][0] == 0
+        assert wine_app.dw_y_axis(9)["ticks"] == [0, 5, 10]
+
+    def test_stats_dw_chart_markup(self, client, sample_wine):
+        html = client.get("/stats").data.decode()
+        assert 'class="dw-yaxis"' in html
+        assert 'class="dw-grid"' in html
+        assert 'class="dw-detail"' in html
+        # bars are buttons (tap/click target), carry year, total and counts
+        assert '<button type="button"' in html and 'data-year="2023"' in html
+        assert 'data-total="3"' in html
+        assert "data-counts=" in html

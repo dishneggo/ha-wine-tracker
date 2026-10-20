@@ -1541,6 +1541,49 @@ def api_timeline():
     return jsonify(ok=True, entries=entries)
 
 
+
+# ── Drink window chart helpers ────────────────────────────────────────────────
+DW_TRIM_RATIO = 0.05  # edge years below 5% of the peak are trimmed
+
+
+def build_dw_chart(dw_by_year, current_year=None, trim_ratio=DW_TRIM_RATIO):
+    """Turn {year: {type: bottles}} into a contiguous list of chart rows.
+
+    Leading and trailing years whose total is below ``trim_ratio`` of the
+    peak year are dropped so the useful range gets more width on small
+    screens. The current year is never trimmed away.
+    """
+    if not dw_by_year:
+        return []
+    totals = {yr: sum(c.values()) for yr, c in dw_by_year.items()}
+    lo, hi = min(totals), max(totals)
+    peak = max(totals.values())
+    threshold = peak * trim_ratio
+
+    def tiny(yr):
+        return totals.get(yr, 0) < threshold and yr != current_year
+
+    while lo < hi and tiny(lo):
+        lo += 1
+    while hi > lo and tiny(hi):
+        hi -= 1
+    return [{"year": yr, "counts": dict(dw_by_year.get(yr, {})),
+             "total": totals.get(yr, 0)}
+            for yr in range(lo, hi + 1)]
+
+
+def dw_y_axis(max_total, max_ticks=5):
+    """Pick a 'nice' y-axis for bottle counts: {"max": n, "ticks": [0, ...]}."""
+    if max_total <= 0:
+        return {"max": 1, "ticks": [0, 1]}
+    step = 1
+    for mult in (1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000):
+        step = mult
+        if -(-max_total // mult) <= max_ticks - 1:
+            break
+    top = -(-max_total // step) * step
+    return {"max": top, "ticks": list(range(0, top + 1, step))}
+
 @app.route("/stats")
 def stats_page():
     db = get_db()
@@ -1642,8 +1685,7 @@ def stats_page():
         except (ValueError, TypeError):
             pass
     if dw_by_year:
-        dw_chart = [{"year": yr, "counts": dict(dw_by_year[yr])}
-                    for yr in range(min(dw_by_year), max(dw_by_year) + 1)]
+        dw_chart = build_dw_chart(dw_by_year, current_year)
         dw_type_order = sorted(dw_types)
         dw_wine_names = {str(yr): {t: wl for t, wl in types.items()}
                          for yr, types in dw_names_by_year.items()}
@@ -1651,6 +1693,7 @@ def stats_page():
         dw_chart = []
         dw_type_order = []
         dw_wine_names = {}
+    dw_axis = dw_y_axis(max((r["total"] for r in dw_chart), default=0))
 
     # Stock history - last 6 months
     today = date.today()
@@ -1750,6 +1793,7 @@ def stats_page():
         in_stock=in_stock,
         out_of_stock=out_of_stock,
         dw_chart=dw_chart,
+        dw_axis=dw_axis,
         dw_type_order=dw_type_order,
         dw_wine_names=dw_wine_names,
         stock_chart=stock_chart,
